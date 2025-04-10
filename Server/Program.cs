@@ -17,7 +17,7 @@ public class Program
     public static void Main(string[] args)
     {
         // Look for updates
-        Updater updater = new Updater("KachleGG", "ChatFramework", "1.0.1", "ChatServer");
+        Updater updater = new Updater("KachleGG", "ChatApp", "1.0.2", "ChatServer");
         updater.Update();
         
         // Launch ngrok

@@ -13,7 +13,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("ChatStream")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Release")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+722132a5a9c680b53fc9d504feed5eea0efde5f8")]
 [assembly: System.Reflection.AssemblyProductAttribute("ChatStream")]
 [assembly: System.Reflection.AssemblyTitleAttribute("ChatStream")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]
