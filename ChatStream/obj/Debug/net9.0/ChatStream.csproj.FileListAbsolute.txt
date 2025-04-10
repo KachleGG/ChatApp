@@ -1,0 +1,11 @@
+/home/kachlon/C#Projects/ChatApp/ChatFramework/ChatStream/obj/Debug/net9.0/ChatStream.GeneratedMSBuildEditorConfig.editorconfig
+/home/kachlon/C#Projects/ChatApp/ChatFramework/ChatStream/obj/Debug/net9.0/ChatStream.AssemblyInfoInputs.cache
+/home/kachlon/C#Projects/ChatApp/ChatFramework/ChatStream/obj/Debug/net9.0/ChatStream.AssemblyInfo.cs
+/home/kachlon/C#Projects/ChatApp/ChatFramework/ChatStream/obj/Debug/net9.0/ChatStream.csproj.CoreCompileInputs.cache
+/home/kachlon/C#Projects/ChatApp/ChatFramework/ChatStream/bin/Debug/net9.0/ChatStream.deps.json
+/home/kachlon/C#Projects/ChatApp/ChatFramework/ChatStream/bin/Debug/net9.0/ChatStream.dll
+/home/kachlon/C#Projects/ChatApp/ChatFramework/ChatStream/bin/Debug/net9.0/ChatStream.pdb
+/home/kachlon/C#Projects/ChatApp/ChatFramework/ChatStream/obj/Debug/net9.0/ChatStream.dll
+/home/kachlon/C#Projects/ChatApp/ChatFramework/ChatStream/obj/Debug/net9.0/refint/ChatStream.dll
+/home/kachlon/C#Projects/ChatApp/ChatFramework/ChatStream/obj/Debug/net9.0/ChatStream.pdb
+/home/kachlon/C#Projects/ChatApp/ChatFramework/ChatStream/obj/Debug/net9.0/ref/ChatStream.dll

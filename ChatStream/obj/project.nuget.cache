@@ -1,0 +1,13 @@
+{
+  "version": 2,
+  "dgSpecHash": "50u8hGYw6nc=",
+  "success": true,
+  "projectFilePath": "/home/kachlon/C#Projects/ChatApp/ChatStream/ChatStream.csproj",
+  "expectedPackageFiles": [
+    "/home/kachlon/.nuget/packages/microsoft.net.illink.tasks/8.0.14/microsoft.net.illink.tasks.8.0.14.nupkg.sha512",
+    "/home/kachlon/.nuget/packages/microsoft.netcore.app.runtime.linux-x64/8.0.14/microsoft.netcore.app.runtime.linux-x64.8.0.14.nupkg.sha512",
+    "/home/kachlon/.nuget/packages/microsoft.aspnetcore.app.ref/8.0.14/microsoft.aspnetcore.app.ref.8.0.14.nupkg.sha512",
+    "/home/kachlon/.nuget/packages/microsoft.aspnetcore.app.runtime.linux-x64/8.0.14/microsoft.aspnetcore.app.runtime.linux-x64.8.0.14.nupkg.sha512"
+  ],
+  "logs": []
+}
