@@ -17,11 +17,8 @@ public class Program
     public static void Main(string[] args)
     {
         // Look for updates
-        Updater updater = new Updater("KachleGG", "ChatApp", "1.0.2", "ChatServer");
+        Updater updater = new Updater("KachleGG", "ChatApp", "1.0.3", "ChatServer");
         updater.Update();
-        
-        // Launch ngrok
-        Process.Start("kitty", "ngrok http --url=crack-llama-possible.ngrok-free.app 8910");
 
         try
         {
