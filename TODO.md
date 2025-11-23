@@ -2,13 +2,14 @@
 
 ## Server
 
-- [ ] Make the api serve the frontend files.
-- [ ] Create api endpoints.
+- [ ] Finish Update and Delete endpoint for UsersController
+- [ ] Finish AuthController
+- [ ] Old messages arent shown
+- [ ] Create update standard
 
 ## Frontend
 
-- [ ] Create whole frontend and link it to the backend api.
+- [ ] Link frontend to the backend api
+- [ ] Old messages arent shown
 
 ---
-
-- [ ] Crate build.py

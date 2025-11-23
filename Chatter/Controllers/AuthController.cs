@@ -1,4 +1,8 @@
-﻿using Microsoft.AspNetCore.Mvc;
+﻿using Chatter.Data;
+using Chatter.Helpers;
+using Chatter.Models.DTOs;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 
 namespace Chatter.Controllers;
 
@@ -6,7 +10,111 @@ namespace Chatter.Controllers;
 [ApiController]
 public class AuthController : ControllerBase
 {
-    // Login endpoint
+    private readonly ChatterDbContext _dbContext;
 
-    // Logout endpoint
+    public AuthController(ChatterDbContext dbContext) {
+        _dbContext = dbContext;
+    }
+
+    // GET api/auth/check
+    // Returns the current authentication state and user info if authenticated
+    [HttpGet("check")]
+    public async Task<IActionResult> Check() {
+        var userId = HttpContext.Session.GetInt32("UserId");
+
+        if (userId == null) {
+            return Ok(new { authenticated = false });
+        }
+
+        var user = await _dbContext.Users.FindAsync(userId.Value);
+
+        if (user == null || user.IsDeactivated) {
+            // User no longer exists or is deactivated - clear session
+            HttpContext.Session.Clear();
+            return Ok(new { authenticated = false });
+        }
+
+        return Ok(new
+        {
+            authenticated = true,
+            user = new
+            {
+                id = user.Id,
+                name = user.Name,
+                email = user.Email,
+                isAdmin = user.IsAdmin
+            }
+        });
+    }
+
+    // POST api/auth/login
+    [HttpPost("login")]
+    public async Task<IActionResult> Login([FromBody] LoginRequest? request) {
+        // Validate request
+        if (request == null) {
+            return BadRequest("Login credentials must be provided.");
+        }
+
+        if (string.IsNullOrWhiteSpace(request.Username)) {
+            return BadRequest("Username/Email is required.");
+        }
+
+        if (string.IsNullOrWhiteSpace(request.Password)) {
+            return BadRequest("Password is required.");
+        }
+
+        // Find user by email (username in this context is email)
+        var email = Validator.SanitizeEmail(request.Username);
+        var user = await _dbContext.Users
+            .FirstOrDefaultAsync(u => u.Email == email);
+
+        if (user == null) {
+            // Don't reveal whether user exists or not (security best practice)
+            return Unauthorized(new { message = "Invalid email or password." });
+        }
+
+        // Check if account is deactivated
+        if (user.IsDeactivated) {
+            return Unauthorized(new { message = "This account has been deactivated." });
+        }
+
+        // Verify password
+        if (!PasswordHasher.VerifyPassword(request.Password, user.Password)) {
+            return Unauthorized(new { message = "Invalid email or password." });
+        }
+
+        // Create session
+        HttpContext.Session.SetInt32("UserId", user.Id);
+        HttpContext.Session.SetString("UserEmail", user.Email);
+        HttpContext.Session.SetString("UserName", user.Name);
+
+        // Return success with user info (without password)
+        return Ok(new
+        {
+            message = "Login successful",
+            user = new
+            {
+                id = user.Id,
+                name = user.Name,
+                email = user.Email,
+                isAdmin = user.IsAdmin
+            }
+        });
+    }
+
+    // POST api/auth/logout
+    [HttpPost("logout")]
+    public IActionResult Logout() {
+        // Check if user is logged in
+        var userId = HttpContext.Session.GetInt32("UserId");
+
+        if (userId == null) {
+            return BadRequest(new { message = "No active session found." });
+        }
+
+        // Clear session
+        HttpContext.Session.Clear();
+
+        return Ok(new { message = "Logout successful" });
+    }
 }

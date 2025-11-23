@@ -1,0 +1,1 @@
+async function s(t,e={}){const c=""+t,n={credentials:"include",headers:{Accept:"application/json"},...e},a=await fetch(c,n);if(!a.ok)throw new Error(`HTTP ${a.status}`);return a.json()}async function r(){try{const t=await s("/api/auth/check");return{authenticated:!!(t&&t.authenticated)}}catch{return{authenticated:!1}}}const i={checkAuth:r};export{r as checkAuth,i as default};

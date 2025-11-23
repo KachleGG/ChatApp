@@ -1,3 +1,4 @@
 <Solution>
+  <Project Path="../Tests/Tests.csproj" Id="c8e88e15-6936-4dfb-a30d-f689705f260e" />
   <Project Path="Chatter.csproj" />
 </Solution>

@@ -1,3 +1,5 @@
+using Chatter.Data;
+using Microsoft.EntityFrameworkCore;
 
 namespace Chatter
 {
@@ -7,6 +9,18 @@ namespace Chatter
             var builder = WebApplication.CreateBuilder(args);
 
             // Add services to the container.
+            builder.Services.AddDbContext<ChatterDbContext>(options =>
+                options.UseSqlite("Data Source=chatter.db"));
+
+            // Configure session support
+            builder.Services.AddDistributedMemoryCache(); // Required for session
+            builder.Services.AddSession(options =>
+            {
+                options.IdleTimeout = TimeSpan.FromHours(24); // Session timeout
+                options.Cookie.HttpOnly = true; // Security: prevent JavaScript access
+                options.Cookie.IsEssential = true; // Required for GDPR compliance
+                options.Cookie.SameSite = SameSiteMode.Lax; // CSRF protection
+            });
 
             builder.Services.AddControllers();
             // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
@@ -14,10 +28,15 @@ namespace Chatter
 
             var app = builder.Build();
 
+            // Ensure database is created and migrated
+            using (var scope = app.Services.CreateScope()) {
+                var dbContext = scope.ServiceProvider.GetRequiredService<ChatterDbContext>();
+
+                // Use migrations to update database schema while preserving data
+                dbContext.Database.Migrate();
+            }
+
             // Ensure AppData folder creation
-            //if (!Directory.Exists(AppConstants.AppData)) {
-            //    Directory.CreateDirectory(AppConstants.AppData);
-            //}
             AppConstants.EnsureFolderStructure();
 
             // Configure the HTTP request pipeline.
@@ -27,9 +46,15 @@ namespace Chatter
 
             app.UseHttpsRedirection();
 
+            // Enable session middleware (must be before UseAuthorization)
+            app.UseSession();
+
             app.UseAuthorization();
 
             app.MapControllers();
+
+            app.UseDefaultFiles();
+            app.UseStaticFiles();
 
             app.Run();
         }
