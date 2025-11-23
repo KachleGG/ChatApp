@@ -1,0 +1,37 @@
+
+namespace Chatter
+{
+    public class Program
+    {
+        public static void Main(string[] args) {
+            var builder = WebApplication.CreateBuilder(args);
+
+            // Add services to the container.
+
+            builder.Services.AddControllers();
+            // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
+            builder.Services.AddOpenApi();
+
+            var app = builder.Build();
+
+            // Ensure AppData folder creation
+            //if (!Directory.Exists(AppConstants.AppData)) {
+            //    Directory.CreateDirectory(AppConstants.AppData);
+            //}
+            AppConstants.EnsureFolderStructure();
+
+            // Configure the HTTP request pipeline.
+            if (app.Environment.IsDevelopment()) {
+                app.MapOpenApi();
+            }
+
+            app.UseHttpsRedirection();
+
+            app.UseAuthorization();
+
+            app.MapControllers();
+
+            app.Run();
+        }
+    }
+}
