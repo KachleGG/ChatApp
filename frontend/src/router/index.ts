@@ -34,6 +34,18 @@ const router = createRouter({
       name: 'Register',
       component: () => import('../views/RegisterView.vue'),
       meta: { requiresAuth: false }
+    },
+    {
+      path: '/profile',
+      name: 'Profile',
+      component: () => import('../views/ProfileView.vue'),
+      meta: { requiresAuth: true }
+    },
+    {
+      path: '/admin',
+      name: 'Admin',
+      component: () => import('../views/AdminView.vue'),
+      meta: { requiresAuth: true, requiresAdmin: true }
     }
   ],
 })
@@ -63,9 +75,23 @@ router.beforeEach(async (to, from, next) => {
     if (!authenticated) {
       // Immediately redirect unauthenticated users to login
       next({ name: 'Login', query: { redirect: to.fullPath } })
-    } else {
-      next()
+      return
     }
+
+    // Check if route requires admin and user is admin
+    if (to.meta.requiresAdmin) {
+      const checkRes = await fetch('/api/auth/check', { credentials: 'include' })
+      if (checkRes.ok) {
+        const data = await checkRes.json()
+        if (!data.user?.isAdmin) {
+          // Not admin - redirect to home
+          next({ name: 'Home' })
+          return
+        }
+      }
+    }
+
+    next()
   } catch (error) {
     console.error('Auth check failed:', error)
     next({ name: 'Login', query: { redirect: to.fullPath } })

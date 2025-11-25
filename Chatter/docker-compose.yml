@@ -1,0 +1,33 @@
+﻿name: chatter-app
+
+services:
+  chatter:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: chatter-app:latest
+    container_name: chatter-server
+    restart: unless-stopped
+    ports:
+      - "${PORT:-9443}:9443"
+    env_file:
+      - .env
+    environment:
+      - ASPNETCORE_ENVIRONMENT=${ASPNETCORE_ENVIRONMENT:-Production}
+      - ASPNETCORE_URLS=http://+:9443
+      - DATABASE_PATH=/app/data/chatter.db
+    volumes:
+      # Persist database and application data
+      - ./data:/app/data
+    networks:
+      - chatter-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9443/api/auth/check"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+networks:
+  chatter-network:
+    driver: bridge

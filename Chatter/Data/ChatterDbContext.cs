@@ -10,7 +10,8 @@ public class ChatterDbContext : DbContext
     public DbSet<User> Users { get; set; }
     public DbSet<Message> Messages { get; set; }
 
-    protected override void OnModelCreating(ModelBuilder modelBuilder) {
+    protected override void OnModelCreating(ModelBuilder modelBuilder)
+    {
         base.OnModelCreating(modelBuilder);
 
         // Configure User entity
@@ -30,6 +31,7 @@ public class ChatterDbContext : DbContext
         {
             entity.HasKey(e => e.Id);
             entity.Property(e => e.Text).IsRequired();
+            entity.Property(e => e.SentAt).IsRequired();
 
             // Configure relationship: Message belongs to User
             entity.HasOne(e => e.SentFrom)
