@@ -60,6 +60,7 @@
   </div>
 </template>
 
+
 <script setup lang="ts">
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
@@ -102,7 +103,6 @@ async function handleRegister() {
   }
 }
 </script>
-
 <style scoped>
 * {
   margin: 0;
@@ -112,8 +112,8 @@ async function handleRegister() {
 
 .auth-body {
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu, Cantarell, "Fira Sans", "Droid Sans", "Helvetica Neue", sans-serif;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  color: #ffffff;
+  background: var(--gradient-bg-auth);
+  color: var(--text-white);
   min-height: 100vh;
 }
 
@@ -127,12 +127,13 @@ async function handleRegister() {
 }
 
 .auth-box {
-  background: #2f3136;
+  background: var(--profile-bg);
   padding: 40px;
   border-radius: 8px;
   width: 100%;
   max-width: 400px;
-  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.3);
+  box-shadow: 0 8px 24px var(--shadow-black-50);
+  border: 1px solid var(--border-white-10);
 }
 
 .auth-title {
@@ -140,13 +141,13 @@ async function handleRegister() {
   font-weight: 700;
   text-align: center;
   margin-bottom: 8px;
-  color: #ffffff;
+  color: var(--text-white);
 }
 
 .auth-subtitle {
   font-size: 18px;
   text-align: center;
-  color: #b9bbbe;
+  color: var(--text-purple-70);
   margin-bottom: 32px;
 }
 
@@ -159,28 +160,28 @@ async function handleRegister() {
   font-size: 12px;
   font-weight: 700;
   text-transform: uppercase;
-  color: #72767d;
+  color: var(--text-purple-40);
   margin-bottom: 8px;
 }
 
 .form-group input {
   width: 100%;
   padding: 12px;
-  background-color: #202225;
-  border: 1px solid #202225;
+  background-color: var(--input-bg);
+  border: 1px solid var(--input-border);
   border-radius: 4px;
-  color: #ffffff;
+  color: var(--text-white);
   font-size: 14px;
   transition: border-color 0.2s ease;
 }
 
 .form-group input:focus {
   outline: none;
-  border-color: #7289da;
+  border-color: var(--input-border-focus);
 }
 
 .form-group input::placeholder {
-  color: #72767d;
+  color: var(--input-placeholder);
 }
 
 .input-with-toggle {
@@ -198,7 +199,7 @@ async function handleRegister() {
   transform: translateY(-50%);
   background: transparent;
   border: none;
-  color: #b9bbbe;
+  color: var(--text-purple-70);
   padding: 4px;
   cursor: pointer;
   display: flex;
@@ -206,7 +207,7 @@ async function handleRegister() {
   justify-content: center;
 }
 
-.password-toggle:hover { color: #fff; }
+.password-toggle:hover { color: var(--text-white); }
 
 .password-toggle:active {
   transform: translateY(1px);
@@ -221,14 +222,14 @@ async function handleRegister() {
 .auth-button {
   width: 100%;
   padding: 12px;
-  background-color: #7289da;
+  background: var(--gradient-primary);
   border: none;
   border-radius: 4px;
-  color: #ffffff;
+  color: var(--text-white);
   font-weight: 600;
   font-size: 14px;
   cursor: pointer;
-  transition: background-color 0.12s ease, transform 0.06s ease, box-shadow 0.06s ease;
+  transition: background 0.12s ease, transform 0.06s ease, box-shadow 0.06s ease;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -236,7 +237,7 @@ async function handleRegister() {
 }
 
 .auth-button:hover {
-  background-color: #5b7fd4;
+  background: var(--gradient-primary-hover);
 }
 
 .spinner { animation: spin 1s linear infinite; }
@@ -248,14 +249,14 @@ async function handleRegister() {
 }
 
 .auth-button:focus {
-  outline: 3px solid rgba(114,137,218,0.18);
+  outline: 3px solid rgba(59,130,246,0.18);
   outline-offset: 2px;
 }
 
 .btn-icon {
   display: inline-block;
   vertical-align: middle;
-  color: #ffffff;
+  color: var(--text-white);
 }
 
 .btn-label {
@@ -265,12 +266,12 @@ async function handleRegister() {
 .auth-footer {
   text-align: center;
   margin-top: 20px;
-  color: #b9bbbe;
+  color: var(--text-purple-70);
   font-size: 14px;
 }
 
 .auth-footer a {
-  color: #7289da;
+  color: var(--brand-purple-primary);
   text-decoration: none;
   font-weight: 600;
 }
@@ -282,10 +283,10 @@ async function handleRegister() {
 .error-message {
   margin-top: 16px;
   padding: 12px;
-  background-color: rgba(240, 71, 71, 0.1);
-  border: 1px solid #f04747;
+  background-color: var(--btn-logout-bg-start);
+  border: 1px solid var(--border-red-30);
   border-radius: 4px;
-  color: #f04747;
+  color: var(--btn-logout-text);
   font-size: 13px;
   display: none;
 }

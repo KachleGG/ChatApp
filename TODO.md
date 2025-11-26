@@ -3,13 +3,6 @@
 ## Server
 
 - [ ] Create update standard
-- [x] Add admin functionality
-  - [x] Add admin controller
-  - [x] Add appsettings manipulation
-  - [x] Add fetching of appsettings
-  - [x] Create admin api endpoints
-  - [x] Add appsettings enforcing
-- [x] Add disabeling general chat
 - [ ] Create private mode
   - [ ] remove option for registering when private mode
   - [ ] Add private mode registering url creation
@@ -23,11 +16,9 @@
 
 ## Frontend
 
-- [ ] Create the servers option
-- [ ] Add icons
-- [x] Add admin functionality
-  - [x] Create frontend for appsettings manipulation
-  - [x] link frontend to admin api endpoints
+- [ ] Create the servers/groups option
+- [x] Add icons
+- [ ] Make better icons
 - [ ] Add support for groups
 
 ---

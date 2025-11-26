@@ -252,7 +252,6 @@ async function logout() {
   router.push({ name: 'Login' })
 }
 </script>
-
 <style>
 /* CSS Reset and Variables */
 * {
@@ -262,19 +261,20 @@ async function logout() {
 }
 
 :root {
-  --primary-dark: #36393f;
-  --secondary-dark: #2f3136;
-  --tertiary-dark: #202225;
-  --accent-purple: #7289da;
-  --accent-hover: #5b7fd4;
-  --text-primary: #ffffff;
-  --text-secondary: #b9bbbe;
-  --text-muted: #72767d;
-  --message-hover: #35393f;
-  --border-color: #202225;
-  --success: #43b581;
-  --error: #f04747;
-  
+  /* Alias legacy view variables to the new global theme variables */
+  --primary-dark: var(--bg-chat-dark-1);
+  --secondary-dark: var(--bg-chat-sidebar-1);
+  --tertiary-dark: var(--bg-chat-dark-2);
+  --accent-purple: var(--brand-purple-primary);
+  --accent-hover: var(--brand-purple-dark);
+  --text-primary: var(--text-white);
+  --text-secondary: var(--text-purple-90);
+  --text-muted: var(--text-purple-60);
+  --message-hover: var(--message-hover);
+  --border-color: var(--border-white-10);
+  --success: var(--profile-status-online);
+  --error: var(--border-red-30);
+
   --sidebar-width: clamp(240px, 20vw, 280px);
   --header-height: clamp(56px, 8vh, 64px);
   --spacing-xs: clamp(0.25rem, 0.5vw, 0.5rem);
@@ -550,7 +550,7 @@ body {
 .message-input:focus {
   outline: none;
   border-color: var(--accent-purple);
-  background-color: #2c2f33;
+  background-color: var(--bg-chat-dark-2);
 }
 
 .message-input:disabled {
@@ -602,7 +602,7 @@ body {
   margin: calc(var(--spacing-md));
   border-radius: 8px;
   background: linear-gradient(90deg, rgba(255,255,255,0.02), transparent);
-  border-left: 4px solid #f0ad4e; /* warning accent */
+  border-left: 4px solid var(--warning-amber); /* warning accent */
   color: var(--text-muted);
   font-size: var(--font-md);
 }
@@ -610,7 +610,7 @@ body {
 .message-disabled-note svg {
   inline-size: 28px;
   block-size: 28px;
-  color: #f0ad4e;
+  color: var(--warning-amber);
   flex-shrink: 0;
 }
 

@@ -198,12 +198,11 @@ async function saveConfig() {
   }
 }
 </script>
-
 <style scoped>
 .admin-page {
   min-height: 100vh;
-  background-color: #36393f;
-  color: #dcddde;
+  background-color: var(--bg-chat-dark-2);
+  color: var(--text-white);
   display: flex;
   justify-content: center;
 }
@@ -217,8 +216,8 @@ async function saveConfig() {
 
 .admin-header {
   height: 64px;
-  background-color: #202225;
-  border-bottom: 1px solid #1e1f22;
+  background-color: var(--bg-chat-dark-1);
+  border-bottom: 1px solid var(--border-white-5);
   padding: 0 24px;
   display: flex;
   align-items: center;
@@ -241,14 +240,14 @@ async function saveConfig() {
   height: 40px;
   border-radius: 50%;
   background-color: transparent;
-  color: #b9bbbe;
+  color: var(--text-purple-70);
   text-decoration: none;
   transition: all 0.2s ease;
 }
 
 .back-arrow:hover {
-  background-color: #4e5058;
-  color: #fff;
+  background-color: var(--bg-chat-sidebar-2);
+  color: var(--text-white);
 }
 
 .back-arrow svg {
@@ -259,14 +258,14 @@ async function saveConfig() {
 .admin-header h1 {
   font-size: 20px;
   font-weight: 600;
-  color: #fff;
+  color: var(--text-white);
   margin: 0;
 }
 
 .loading {
   text-align: center;
   padding: 40px;
-  color: #b9bbbe;
+  color: var(--text-purple-70);
   font-size: 14px;
 }
 
@@ -274,10 +273,10 @@ async function saveConfig() {
   max-width: 600px;
   margin: 40px auto;
   text-align: center;
-  background: #2f3136;
+  background: var(--bg-chat-sidebar-1);
   padding: 40px;
   border-radius: 8px;
-  border: 2px solid #ed4245;
+  border: 2px solid var(--border-red-30);
 }
 
 .unauthorized-icon {
@@ -287,18 +286,18 @@ async function saveConfig() {
 .unauthorized-icon svg {
   width: 64px;
   height: 64px;
-  color: #ed4245;
+  color: var(--border-red-30);
 }
 
 .unauthorized h2 {
   font-size: 24px;
   margin-bottom: 16px;
-  color: #ed4245;
+  color: var(--border-red-30);
 }
 
 .unauthorized p {
   margin-bottom: 24px;
-  color: #b9bbbe;
+  color: var(--text-purple-70);
   font-size: 14px;
 }
 
@@ -307,8 +306,8 @@ async function saveConfig() {
   align-items: center;
   gap: 8px;
   padding: 10px 20px;
-  background-color: #5865f2;
-  color: #fff;
+  background-color: var(--brand-blue-primary);
+  color: var(--text-white);
   text-decoration: none;
   border-radius: 4px;
   font-size: 14px;
@@ -317,7 +316,7 @@ async function saveConfig() {
 }
 
 .home-link:hover {
-  background-color: #4752c4;
+  filter: brightness(0.92);
 }
 
 .home-link svg {
@@ -331,38 +330,38 @@ async function saveConfig() {
 }
 
 .admin-section {
-  background: #2f3136;
+  background: var(--bg-chat-sidebar-1);
   padding: 24px;
   border-radius: 8px;
   margin-bottom: 20px;
-  border-left: 4px solid #5865f2;
+  border-left: 4px solid var(--brand-blue-primary);
 }
 
 .admin-section h2 {
   font-size: 20px;
   font-weight: 600;
   margin-bottom: 16px;
-  color: #fff;
+  color: var(--text-white);
 }
 
 .admin-section p {
-  color: #b9bbbe;
+  color: var(--text-purple-70);
   margin-bottom: 16px;
   font-size: 14px;
   line-height: 1.5;
 }
 
 .placeholder-info {
-  background: #202225;
+  background: var(--bg-chat-dark-1);
   padding: 16px;
   border-radius: 4px;
-  border-left: 4px solid #5865f2;
+  border-left: 4px solid var(--brand-blue-primary);
 }
 
 .placeholder-info h3 {
   font-size: 16px;
   margin-bottom: 12px;
-  color: #5865f2;
+  color: var(--brand-blue-primary);
 }
 
 .placeholder-info ul {
@@ -373,8 +372,8 @@ async function saveConfig() {
 
 .placeholder-info li {
   padding: 8px 0;
-  color: #b9bbbe;
-  border-bottom: 1px solid #2f3136;
+  color: var(--text-purple-70);
+  border-bottom: 1px solid var(--bg-chat-sidebar-1);
   font-size: 14px;
   display: flex;
   align-items: center;
@@ -386,7 +385,7 @@ async function saveConfig() {
 
 .placeholder-info li:before {
   content: '→';
-  color: #5865f2;
+  color: var(--brand-blue-primary);
   margin-right: 8px;
   font-weight: 600;
 }
@@ -396,16 +395,16 @@ async function saveConfig() {
 }
 
 .admin-page::-webkit-scrollbar-track {
-  background: #2f3136;
+  background: var(--bg-chat-sidebar-1);
 }
 
 .admin-page::-webkit-scrollbar-thumb {
-  background-color: #202225;
+  background-color: var(--bg-chat-dark-2);
   border-radius: 4px;
 }
 
 .admin-page::-webkit-scrollbar-thumb:hover {
-  background-color: #1e1f22;
+  background-color: var(--bg-chat-dark-1);
 }
 
 /* Settings grid and switches */
@@ -422,7 +421,7 @@ async function saveConfig() {
 }
 
 .setting-label {
-  color: #b9bbbe;
+  color: var(--text-purple-70);
   font-weight: 600;
 }
 
@@ -430,9 +429,9 @@ async function saveConfig() {
   width: 100%;
   padding: 10px 12px;
   border-radius: 6px;
-  background: #202225;
-  border: 1px solid #2f3136;
-  color: #fff;
+  background: var(--bg-chat-dark-2);
+  border: 1px solid var(--bg-chat-sidebar-1);
+  color: var(--text-white);
 }
 
 .switch {
@@ -448,7 +447,7 @@ async function saveConfig() {
   position: absolute;
   cursor: pointer;
   top: 0; left: 0; right: 0; bottom: 0;
-  background-color: #888;
+  background-color: var(--border-white-20);
   transition: 0.18s;
   border-radius: 28px;
   box-shadow: inset 0 1px 2px rgba(0,0,0,0.2);
@@ -467,7 +466,7 @@ async function saveConfig() {
 }
 
 .switch input:checked + .slider {
-  background-color: #5865f2;
+  background-color: var(--brand-blue-primary);
 }
 
 .switch input:checked + .slider:before {
@@ -475,10 +474,10 @@ async function saveConfig() {
 }
 
 .admin-actions { margin-top: 18px; display:flex; gap: 12px; align-items:center }
-.save-btn { background: #5865f2; color: #fff; padding: 8px 14px; border-radius:6px; border:none; cursor:pointer }
+.save-btn { background: var(--brand-blue-primary); color: var(--text-white); padding: 8px 14px; border-radius:6px; border:none; cursor:pointer }
 .save-btn:disabled { opacity: .5; cursor: not-allowed }
-.status { color: #b9bbbe }
+.status { color: var(--text-purple-70) }
 
-.restart-note { margin-top:12px; padding:10px; background:#26272a; border-left:4px solid #f0ad4e; color:#ffdca6; border-radius:4px }
+.restart-note { margin-top:12px; padding:10px; background: var(--bg-chat-sidebar-1); border-left:4px solid var(--warning-amber); color: var(--warning-amber); border-radius:4px }
 </style>
 

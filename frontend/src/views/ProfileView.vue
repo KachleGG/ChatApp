@@ -335,12 +335,11 @@ async function handleDeactivate() {
   }
 }
 </script>
-
 <style scoped>
 .profile-page {
   min-height: 100vh;
-  background-color: #36393f;
-  color: #dcddde;
+  background-color: var(--bg-chat-dark-2);
+  color: var(--text-white);
   display: flex;
   justify-content: center;
 }
@@ -354,8 +353,8 @@ async function handleDeactivate() {
 
 .profile-header {
   height: 64px;
-  background-color: #202225;
-  border-bottom: 1px solid #1e1f22;
+  background-color: var(--bg-chat-dark-1);
+  border-bottom: 1px solid var(--border-white-5);
   padding: 0 24px;
   display: flex;
   align-items: center;
@@ -378,14 +377,14 @@ async function handleDeactivate() {
   height: 40px;
   border-radius: 50%;
   background-color: transparent;
-  color: #b9bbbe;
+  color: var(--text-purple-70);
   text-decoration: none;
   transition: all 0.2s ease;
 }
 
 .back-arrow:hover {
-  background-color: #4e5058;
-  color: #fff;
+  background-color: var(--bg-chat-sidebar-2);
+  color: var(--text-white);
 }
 
 .back-arrow svg {
@@ -396,14 +395,14 @@ async function handleDeactivate() {
 .profile-header h1 {
   font-size: 20px;
   font-weight: 600;
-  color: #fff;
+  color: var(--text-white);
   margin: 0;
 }
 
 .loading {
   text-align: center;
   padding: 40px;
-  color: #b9bbbe;
+  color: var(--text-purple-70);
   font-size: 14px;
 }
 
@@ -422,7 +421,7 @@ async function handleDeactivate() {
   transform: translateY(-50%);
   background: transparent;
   border: none;
-  color: #b9bbbe;
+  color: var(--text-purple-70);
   padding: 4px;
   cursor: pointer;
   display: flex;
@@ -430,7 +429,7 @@ async function handleDeactivate() {
   justify-content: center;
 }
 
-.password-toggle:hover { color: #fff; }
+.password-toggle:hover { color: var(--text-white); }
 
 .profile-content {
   padding: 24px;
@@ -441,16 +440,16 @@ async function handleDeactivate() {
 }
 
 .profile-section {
-  background-color: #2f3136;
+  background-color: var(--bg-chat-sidebar-1);
   border-radius: 8px;
   padding: 24px;
-  border: 1px solid #202225;
+  border: 1px solid var(--border-white-10);
 }
 
 .profile-section h2 {
   font-size: 16px;
   font-weight: 600;
-  color: #fff;
+  color: var(--text-white);
   margin: 0 0 16px 0;
 }
 
@@ -464,24 +463,24 @@ async function handleDeactivate() {
   display: block;
   font-size: 12px;
   font-weight: 600;
-  color: #b9bbbe;
+  color: var(--text-purple-70);
   text-transform: uppercase;
   margin-bottom: 8px;
 }
 
 .info-item p {
   font-size: 14px;
-  color: #dcddde;
+  color: var(--text-white);
   margin: 0;
 }
 
 .admin-section {
-  background-color: #2b2d31;
-  border-left: 4px solid #5865f2;
+  background-color: var(--bg-chat-sidebar-2);
+  border-left: 4px solid var(--brand-blue-primary);
 }
 
 .admin-section p {
-  color: #b9bbbe;
+  color: var(--text-purple-70);
   margin: 0 0 12px 0;
   font-size: 14px;
 }
@@ -491,8 +490,8 @@ async function handleDeactivate() {
   align-items: center;
   gap: 8px;
   padding: 10px 16px;
-  background-color: #5865f2;
-  color: #fff;
+  background-color: var(--brand-blue-primary);
+  color: var(--text-white);
   border-radius: 4px;
   text-decoration: none;
   font-size: 14px;
@@ -501,7 +500,7 @@ async function handleDeactivate() {
 }
 
 .admin-button:hover {
-  background-color: #4752c4;
+  filter: brightness(0.92);
 }
 
 .admin-button svg {
@@ -517,7 +516,7 @@ async function handleDeactivate() {
   display: block;
   font-size: 12px;
   font-weight: 600;
-  color: #b9bbbe;
+  color: var(--text-purple-70);
   text-transform: uppercase;
   margin-bottom: 8px;
 }
@@ -525,17 +524,17 @@ async function handleDeactivate() {
 .form-group input {
   width: 100%;
   padding: 10px 12px;
-  background-color: #1e1f22;
-  border: 1px solid #1e1f22;
+  background-color: var(--input-bg);
+  border: 1px solid var(--input-border);
   border-radius: 4px;
-  color: #dcddde;
+  color: var(--text-white);
   font-size: 14px;
   transition: border-color 0.2s ease;
 }
 
 .form-group input:focus {
   outline: none;
-  border-color: #5865f2;
+  border-color: var(--brand-blue-primary);
 }
 
 .button-group {
@@ -555,12 +554,12 @@ async function handleDeactivate() {
 }
 
 .save-button {
-  background-color: #5865f2;
-  color: #fff;
+  background-color: var(--brand-blue-primary);
+  color: var(--text-white);
 }
 
 .save-button:hover:not(:disabled) {
-  background-color: #4752c4;
+  filter: brightness(0.92);
 }
 
 .save-button:disabled {
@@ -569,12 +568,12 @@ async function handleDeactivate() {
 }
 
 .change-password-button {
-  background-color: #4e5058;
-  color: #fff;
+  background-color: var(--bg-chat-sidebar-2);
+  color: var(--text-white);
 }
 
 .change-password-button:hover {
-  background-color: #5d6169;
+  filter: brightness(0.95);
 }
 
 .message {
@@ -585,18 +584,18 @@ async function handleDeactivate() {
 }
 
 .message.error {
-  background-color: #ed4245;
-  color: #fff;
+  background-color: var(--border-red-30);
+  color: var(--text-white);
 }
 
 .message.success {
-  background-color: #3ba55d;
-  color: #fff;
+  background-color: var(--profile-status-online);
+  color: var(--text-white);
 }
 
 .danger-section {
-  background-color: #2b2d31;
-  border-left: 4px solid #ed4245;
+  background-color: var(--bg-chat-sidebar-2);
+  border-left: 4px solid var(--border-red-30);
 }
 
 .danger-actions {
@@ -619,12 +618,12 @@ async function handleDeactivate() {
 }
 
 .logout-button {
-  background-color: #4e5058;
-  color: #fff;
+  background-color: var(--bg-chat-sidebar-2);
+  color: var(--text-white);
 }
 
 .logout-button:hover {
-  background-color: #5d6169;
+  filter: brightness(0.95);
 }
 
 .logout-button svg {
@@ -633,12 +632,12 @@ async function handleDeactivate() {
 }
 
 .delete-button {
-  background-color: #ed4245;
-  color: #fff;
+  background-color: var(--border-red-30);
+  color: var(--text-white);
 }
 
 .delete-button:hover:not(:disabled) {
-  background-color: #c03537;
+  filter: brightness(0.9);
 }
 
 .delete-button:disabled {
@@ -658,13 +657,13 @@ async function handleDeactivate() {
 }
 
 .dialog {
-  background-color: #2f3136;
+  background-color: var(--bg-chat-sidebar-1);
   border-radius: 8px;
   width: 100%;
   max-width: 500px;
   max-height: 90vh;
   overflow-y: auto;
-  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.24);
+  box-shadow: 0 8px 16px var(--shadow-black-50);
 }
 
 .dialog-header {
@@ -672,13 +671,13 @@ async function handleDeactivate() {
   align-items: center;
   justify-content: space-between;
   padding: 20px;
-  border-bottom: 1px solid #202225;
+  border-bottom: 1px solid var(--border-white-5);
 }
 
 .dialog-header h3 {
   font-size: 20px;
   font-weight: 600;
-  color: #fff;
+  color: var(--text-white);
   margin: 0;
 }
 
@@ -688,7 +687,7 @@ async function handleDeactivate() {
   border-radius: 50%;
   background-color: transparent;
   border: none;
-  color: #b9bbbe;
+  color: var(--text-purple-70);
   cursor: pointer;
   display: flex;
   align-items: center;
@@ -698,8 +697,8 @@ async function handleDeactivate() {
 }
 
 .close-btn:hover {
-  background-color: #4e5058;
-  color: #fff;
+  background-color: var(--bg-chat-sidebar-2);
+  color: var(--text-white);
 }
 
 .close-btn svg {
@@ -721,9 +720,9 @@ async function handleDeactivate() {
 .cancel-btn {
   padding: 10px 20px;
   background-color: transparent;
-  border: 1px solid #4e5058;
+  border: 1px solid var(--border-white-10);
   border-radius: 4px;
-  color: #fff;
+  color: var(--text-white);
   font-size: 14px;
   font-weight: 500;
   cursor: pointer;
@@ -731,7 +730,7 @@ async function handleDeactivate() {
 }
 
 .cancel-btn:hover {
-  background-color: #4e5058;
+  background-color: var(--bg-chat-sidebar-2);
 }
 
 .profile-page::-webkit-scrollbar {
@@ -739,16 +738,16 @@ async function handleDeactivate() {
 }
 
 .profile-page::-webkit-scrollbar-track {
-  background: #2f3136;
+  background: var(--bg-chat-sidebar-1);
 }
 
 .profile-page::-webkit-scrollbar-thumb {
-  background-color: #202225;
+  background-color: var(--bg-chat-dark-1);
   border-radius: 4px;
 }
 
 .profile-page::-webkit-scrollbar-thumb:hover {
-  background-color: #1e1f22;
+  background-color: var(--border-white-10);
 }
 
 .dialog::-webkit-scrollbar {
@@ -756,11 +755,11 @@ async function handleDeactivate() {
 }
 
 .dialog::-webkit-scrollbar-track {
-  background: #2f3136;
+  background: var(--bg-chat-sidebar-1);
 }
 
 .dialog::-webkit-scrollbar-thumb {
-  background-color: #202225;
+  background-color: var(--bg-chat-dark-2);
   border-radius: 4px;
 }
 </style>
