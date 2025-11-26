@@ -3,20 +3,31 @@
 ## Server
 
 - [ ] Create update standard
-- [ ] Add admin functionality
+- [x] Add admin functionality
   - [x] Add admin controller
   - [x] Add appsettings manipulation
-  - [ ] Add fetching of appsettings
-  - [ ] Create admin api endpoints
-  - [ ] Add appsettings enforcing
+  - [x] Add fetching of appsettings
+  - [x] Create admin api endpoints
+  - [x] Add appsettings enforcing
+- [x] Add disabeling general chat
+- [ ] Create private mode
+  - [ ] remove option for registering when private mode
+  - [ ] Add private mode registering url creation
+    - [ ] Create an enpoint
+    - [ ] Create url creator
+    - [ ] Make it so the url expires after some time or after the person registers
+- [ ] Add groups
+  - [ ] Add database table
+  - [ ] Add appsettings.json entry for permitting groups
+- [ ] Add chat restrictions/filtering(swear words.....)
 
 ## Frontend
 
-- [x] Highlihgt your messages
-- [x] Make the password visible buttons
 - [ ] Create the servers option
-- [ ] Add admin functionality
-  - [ ] Create frontend for appsettings manipulation
-  - [ ] link frontend to admin api endpoints
+- [ ] Add icons
+- [x] Add admin functionality
+  - [x] Create frontend for appsettings manipulation
+  - [x] link frontend to admin api endpoints
+- [ ] Add support for groups
 
 ---

@@ -37,17 +37,54 @@
       <div v-else class="admin-content">
         <div class="admin-section">
           <h2>Administration Dashboard</h2>
-          <p>This page is under construction. Admin features will be added here.</p>
-          
-          <div class="placeholder-info">
-            <h3>Coming Soon:</h3>
-            <ul>
-              <li>User management</li>
-              <li>Message moderation</li>
-              <li>System statistics</li>
-              <li>Server configuration</li>
-            </ul>
+          <p>Toggle server settings below. Changes will update `Chatter/appsettings.json` (admin-only).</p>
+
+          <div class="settings-grid">
+            <div class="setting-row">
+              <div class="setting-label">Private Mode</div>
+              <label class="switch">
+                <input type="checkbox" v-model="config.privateMode" />
+                <span class="slider" aria-hidden="true"></span>
+              </label>
+            </div>
+
+            <div class="setting-row">
+              <div class="setting-label">Prohibit Groups</div>
+              <label class="switch">
+                <input type="checkbox" v-model="config.prohibitGroups" />
+                <span class="slider" aria-hidden="true"></span>
+              </label>
+            </div>
+
+            <div class="setting-row">
+              <div class="setting-label">Prohibit General Channel</div>
+              <label class="switch">
+                <input type="checkbox" v-model="config.prohibitGeneral" />
+                <span class="slider" aria-hidden="true"></span>
+              </label>
+            </div>
+
+            <div class="setting-row">
+              <div class="setting-label">HTTP URL</div>
+              <input class="text-input" type="text" v-model="config.httpUrl" placeholder="http://*:9090" />
+            </div>
+
+            <div class="setting-row">
+              <div class="setting-label">HTTPS URL</div>
+              <input class="text-input" type="text" v-model="config.httpsUrl" placeholder="https://*:9443" />
+            </div>
           </div>
+
+          <div class="admin-actions">
+            <button class="save-btn" @click="saveConfig" :disabled="saving">Save changes</button>
+            <span class="status" v-if="saveMessage">{{ saveMessage }}</span>
+          </div>
+
+          <div v-if="showRestartNotice" class="restart-note">
+            <strong>Note:</strong> Port/url changes take effect only after the service is restarted.
+          </div>
+
+          <div v-if="loadingConfig" class="loading">Loading config...</div>
         </div>
       </div>
     </div>
@@ -61,6 +98,12 @@ import { useRouter } from 'vue-router'
 const router = useRouter()
 const loading = ref(true)
 const isAdmin = ref(false)
+const config = ref({ prohibitGroups: false, privateMode: false, prohibitGeneral: false, httpUrl: '', httpsUrl: '' })
+const originalConfig = ref<{ httpUrl: string; httpsUrl: string } | null>(null)
+const showRestartNotice = ref(false)
+const loadingConfig = ref(false)
+const saving = ref(false)
+const saveMessage = ref('')
 
 async function checkAdmin() {
   try {
@@ -87,7 +130,73 @@ async function checkAdmin() {
 onMounted(async () => {
   await checkAdmin()
   loading.value = false
+  if (isAdmin.value) await fetchAdminConfig()
 })
+
+async function fetchAdminConfig() {
+  loadingConfig.value = true
+  try {
+    const res = await fetch('/api/admin/config', { credentials: 'include' })
+    if (!res.ok) {
+      saveMessage.value = 'Failed to load config'
+      return
+    }
+    const data = await res.json()
+    config.value.prohibitGroups = !!data.prohibitGroups
+    config.value.privateMode = !!data.privateMode
+    config.value.prohibitGeneral = !!data.prohibitGeneral
+    config.value.httpUrl = data.httpUrl || ''
+    config.value.httpsUrl = data.httpsUrl || ''
+      // Keep a copy of original ports so we can detect changes that require a restart
+      originalConfig.value = { httpUrl: config.value.httpUrl, httpsUrl: config.value.httpsUrl }
+  } catch (e) {
+    saveMessage.value = 'Error loading config'
+    console.warn(e)
+  } finally {
+    loadingConfig.value = false
+  }
+}
+
+async function saveConfig() {
+  saveMessage.value = ''
+  saving.value = true
+  try {
+    const payload = {
+      ProhibitGroups: config.value.prohibitGroups,
+      PrivateMode: config.value.privateMode,
+      ProhibitGeneral: config.value.prohibitGeneral,
+      HttpUrl: config.value.httpUrl,
+      HttpsUrl: config.value.httpsUrl,
+    }
+    const res = await fetch('/api/admin/config', {
+      method: 'PUT',
+      credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    })
+    if (!res.ok) {
+      const txt = await res.text().catch(() => '')
+      saveMessage.value = `Save failed: ${res.status} ${txt}`
+      return
+    }
+
+    // Indicate success; if ports changed, show restart note
+    const portsChanged = 
+      (originalConfig.value?.httpUrl ?? '') !== (config.value.httpUrl ?? '') ||
+      (originalConfig.value?.httpsUrl ?? '') !== (config.value.httpsUrl ?? '')
+
+    saveMessage.value = portsChanged
+      ? 'Saved successfully. Port/url changes require service restart to take effect.'
+      : 'Saved successfully.'
+
+    showRestartNotice.value = portsChanged
+  } catch (e) {
+    saveMessage.value = 'Network error while saving'
+  } finally {
+    saving.value = false
+    setTimeout(() => (saveMessage.value = ''), 4000)
+  }
+}
 </script>
 
 <style scoped>
@@ -298,5 +407,78 @@ onMounted(async () => {
 .admin-page::-webkit-scrollbar-thumb:hover {
   background-color: #1e1f22;
 }
+
+/* Settings grid and switches */
+.settings-grid {
+  display: grid;
+  grid-template-columns: 1fr 240px;
+  gap: 12px 20px;
+  align-items: center;
+  margin-top: 12px;
+}
+
+.setting-row {
+  display: contents;
+}
+
+.setting-label {
+  color: #b9bbbe;
+  font-weight: 600;
+}
+
+.text-input {
+  width: 100%;
+  padding: 10px 12px;
+  border-radius: 6px;
+  background: #202225;
+  border: 1px solid #2f3136;
+  color: #fff;
+}
+
+.switch {
+  position: relative;
+  display: inline-block;
+  width: 52px;
+  height: 28px;
+}
+
+.switch input { display: none; }
+
+.slider {
+  position: absolute;
+  cursor: pointer;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background-color: #888;
+  transition: 0.18s;
+  border-radius: 28px;
+  box-shadow: inset 0 1px 2px rgba(0,0,0,0.2);
+}
+
+.slider:before {
+  position: absolute;
+  content: "";
+  height: 22px;
+  width: 22px;
+  left: 4px;
+  top: 3px;
+  background-color: white;
+  transition: 0.18s;
+  border-radius: 50%;
+}
+
+.switch input:checked + .slider {
+  background-color: #5865f2;
+}
+
+.switch input:checked + .slider:before {
+  transform: translateX(24px);
+}
+
+.admin-actions { margin-top: 18px; display:flex; gap: 12px; align-items:center }
+.save-btn { background: #5865f2; color: #fff; padding: 8px 14px; border-radius:6px; border:none; cursor:pointer }
+.save-btn:disabled { opacity: .5; cursor: not-allowed }
+.status { color: #b9bbbe }
+
+.restart-note { margin-top:12px; padding:10px; background:#26272a; border-left:4px solid #f0ad4e; color:#ffdca6; border-radius:4px }
 </style>
 

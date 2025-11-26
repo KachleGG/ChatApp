@@ -1,7 +1,7 @@
 <template>
   <div class="container">
     <!-- Sidebar -->
-    <aside class="sidebar">
+    <aside class="sidebar" v-if="!prohibitGroups">
       <div class="server-icon">
         <span>AC</span>
       </div>
@@ -19,7 +19,7 @@
       <!-- Header with Profile in Top Right -->
       <header class="chat-header">
         <div class="header-left">
-          <h2 class="channel-title">#general</h2>
+          <h2 class="channel-title">General</h2>
         </div>
         
         <div class="header-right">
@@ -62,12 +62,12 @@
       </div>
 
       <!-- Message Input -->
-      <div class="message-input-container">
+      <div v-if="!prohibitGeneral" class="message-input-container">
         <form id="messageForm" @submit.prevent="sendMessage">
           <input
             type="text"
             id="messageInput"
-            placeholder="Message #general"
+            placeholder="Message General"
             class="message-input"
             v-model="newMessage"
             autocomplete="off"
@@ -83,6 +83,9 @@
         </form>
         <div v-if="error" class="error-banner">{{ error }}</div>
       </div>
+      <div v-else class="message-disabled-note">
+        Sending messages to the General channel is disabled by an administrator.
+      </div>
     </main>
   </div>
 </template>
@@ -92,6 +95,8 @@ import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 
 const router = useRouter()
+const prohibitGroups = ref(false)
+const prohibitGeneral = ref(false)
 const messages = ref<{ id: number; author: string; text: string; time: string; sentAt?: string; date?: string }[]>([])
 const newMessage = ref('')
 const loading = ref(true)
@@ -174,9 +179,24 @@ onMounted(async () => {
     return
   }
   currentUser.value = user
+  await fetchConfig()
   await fetchMessages()
   loading.value = false
 })
+
+async function fetchConfig() {
+  try {
+    const res = await fetch('/api/config', { credentials: 'include' })
+    if (!res.ok) return
+    const data = await res.json()
+    // server now returns `prohibitGroups` (true = hide groups panel)
+    prohibitGroups.value = !!data.prohibitGroups
+    // server may return `prohibitGeneral` to block posting to General channel
+    prohibitGeneral.value = !!data.prohibitGeneral
+  } catch (e) {
+    console.warn('Failed to fetch config:', e)
+  }
+}
 
 async function sendMessage() {
   error.value = ''
@@ -571,6 +591,33 @@ body {
   border-radius: 4px;
   color: var(--error);
   font-size: var(--font-sm);
+}
+
+/* Notice shown when General channel is prohibited */
+.message-disabled-note {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: calc(var(--spacing-md) + 2px);
+  margin: calc(var(--spacing-md));
+  border-radius: 8px;
+  background: linear-gradient(90deg, rgba(255,255,255,0.02), transparent);
+  border-left: 4px solid #f0ad4e; /* warning accent */
+  color: var(--text-muted);
+  font-size: var(--font-md);
+}
+
+.message-disabled-note svg {
+  inline-size: 28px;
+  block-size: 28px;
+  color: #f0ad4e;
+  flex-shrink: 0;
+}
+
+.message-disabled-note .note-text {
+  color: var(--text-secondary);
+  font-size: 0.95rem;
+  line-height: 1.3;
 }
 
 /* Scrollbar */

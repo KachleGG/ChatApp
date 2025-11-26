@@ -2,7 +2,7 @@
   <div class="auth-body">
     <div class="auth-container">
       <div class="auth-box">
-        <h1 class="auth-title">Anarchy Chat</h1>
+        <h1 class="auth-title">Chatter</h1>
         <p class="auth-subtitle">Welcome Back</p>
 
         <form id="loginForm" @submit.prevent="handleLogin">
@@ -22,7 +22,17 @@
             </div>
           </div>
 
-          <button type="submit" class="auth-button">Login</button>
+          <button type="submit" class="auth-button" :disabled="loginLoading" :aria-busy="loginLoading">
+            <svg v-if="!loginLoading" class="btn-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+              <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"></path>
+              <polyline points="10 17 15 12 10 7"></polyline>
+              <line x1="15" y1="12" x2="3" y2="12"></line>
+            </svg>
+            <svg v-else class="spinner" width="16" height="16" viewBox="0 0 50 50" aria-hidden="true">
+              <circle cx="25" cy="25" r="20" fill="none" stroke="currentColor" stroke-width="4" stroke-linecap="round" stroke-dasharray="31.415, 31.415"></circle>
+            </svg>
+            <span class="btn-label">{{ loginLoading ? 'Logging in...' : 'Login' }}</span>
+          </button>
         </form>
 
         <p class="auth-footer">Don't have an account? <router-link to="/register">Register here</router-link></p>
@@ -43,9 +53,11 @@ const email = ref('')
 const password = ref('')
 const error = ref('')
 const showPassword = ref(false)
+const loginLoading = ref(false)
 
 async function handleLogin() {
   error.value = ''
+  loginLoading.value = true
   try {
     const res = await fetch('/api/auth/login', {
       method: 'POST',
@@ -62,6 +74,8 @@ async function handleLogin() {
     router.push({ name: 'Home' })
   } catch (e) {
     error.value = 'Network error'
+  } finally {
+    loginLoading.value = false
   }
 }
 </script>
@@ -162,6 +176,16 @@ async function handleLogin() {
 
 .password-toggle:hover { color: #fff; }
 
+.password-toggle:active {
+  transform: translateY(1px);
+  opacity: 0.9;
+}
+
+.password-toggle:focus {
+  outline: 2px solid rgba(114,137,218,0.14);
+  outline-offset: 2px;
+}
+
 .form-group input:focus {
   outline: none;
   border-color: #7289da;
@@ -181,11 +205,38 @@ async function handleLogin() {
   font-weight: 600;
   font-size: 14px;
   cursor: pointer;
-  transition: background-color 0.2s ease;
+  transition: background-color 0.12s ease, transform 0.06s ease, box-shadow 0.06s ease;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
 }
 
 .auth-button:hover {
   background-color: #5b7fd4;
+}
+
+.spinner { animation: spin 1s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+
+.auth-button:active {
+  transform: translateY(1px) scale(0.998);
+  box-shadow: inset 0 2px 6px rgba(0,0,0,0.25);
+}
+
+.auth-button:focus {
+  outline: 3px solid rgba(114,137,218,0.18);
+  outline-offset: 2px;
+}
+
+.btn-icon {
+  display: inline-block;
+  vertical-align: middle;
+  color: #ffffff;
+}
+
+.btn-label {
+  display: inline-block;
 }
 
 .auth-footer {

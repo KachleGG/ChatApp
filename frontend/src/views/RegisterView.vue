@@ -2,7 +2,7 @@
   <div class="auth-body">
     <div class="auth-container">
       <div class="auth-box">
-        <h1 class="auth-title">Anarchy Chat</h1>
+        <h1 class="auth-title">Chatter</h1>
         <p class="auth-subtitle">Create Account</p>
         
         <form id="registerForm" @submit.prevent="handleRegister">
@@ -38,7 +38,18 @@
             </div>
           </div>
 
-          <button type="submit" class="auth-button">Create Account</button>
+          <button type="submit" class="auth-button" :disabled="registerLoading" :aria-busy="registerLoading">
+            <svg v-if="!registerLoading" class="btn-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+              <path d="M16 11c1.657 0 3-1.343 3-3s-1.343-3-3-3-3 1.343-3 3 1.343 3 3 3z"></path>
+              <path d="M2 21v-2a4 4 0 0 1 4-4h4"></path>
+              <path d="M19 16v6"></path>
+              <path d="M22 19h-6"></path>
+            </svg>
+            <svg v-else class="spinner" width="16" height="16" viewBox="0 0 50 50" aria-hidden="true">
+              <circle cx="25" cy="25" r="20" fill="none" stroke="currentColor" stroke-width="4" stroke-linecap="round" stroke-dasharray="31.415, 31.415"></circle>
+            </svg>
+            <span class="btn-label">{{ registerLoading ? 'Creating...' : 'Create Account' }}</span>
+          </button>
         </form>
 
         <p class="auth-footer">Already have an account? <router-link to="/login">Login here</router-link></p>
@@ -61,6 +72,7 @@ const confirmPassword = ref('')
 const error = ref('')
 const showPassword = ref(false)
 const showConfirmPassword = ref(false)
+const registerLoading = ref(false)
 
 async function handleRegister() {
   error.value = ''
@@ -68,6 +80,7 @@ async function handleRegister() {
     error.value = 'Passwords do not match'
     return
   }
+  registerLoading.value = true
   try {
     const res = await fetch('/api/users', {
       method: 'POST',
@@ -84,6 +97,8 @@ async function handleRegister() {
     router.push({ name: 'Login' })
   } catch (e) {
     error.value = 'Network error'
+  } finally {
+    registerLoading.value = false
   }
 }
 </script>
@@ -193,6 +208,16 @@ async function handleRegister() {
 
 .password-toggle:hover { color: #fff; }
 
+.password-toggle:active {
+  transform: translateY(1px);
+  opacity: 0.9;
+}
+
+.password-toggle:focus {
+  outline: 2px solid rgba(114,137,218,0.14);
+  outline-offset: 2px;
+}
+
 .auth-button {
   width: 100%;
   padding: 12px;
@@ -203,11 +228,38 @@ async function handleRegister() {
   font-weight: 600;
   font-size: 14px;
   cursor: pointer;
-  transition: background-color 0.2s ease;
+  transition: background-color 0.12s ease, transform 0.06s ease, box-shadow 0.06s ease;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
 }
 
 .auth-button:hover {
   background-color: #5b7fd4;
+}
+
+.spinner { animation: spin 1s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+
+.auth-button:active {
+  transform: translateY(1px) scale(0.998);
+  box-shadow: inset 0 2px 6px rgba(0,0,0,0.25);
+}
+
+.auth-button:focus {
+  outline: 3px solid rgba(114,137,218,0.18);
+  outline-offset: 2px;
+}
+
+.btn-icon {
+  display: inline-block;
+  vertical-align: middle;
+  color: #ffffff;
+}
+
+.btn-label {
+  display: inline-block;
 }
 
 .auth-footer {

@@ -11,10 +11,12 @@ namespace Chatter.Controllers;
 public class MessagesController : ControllerBase
 {
     private readonly ChatterDbContext _dbContext;
+    private readonly IConfiguration _configuration;
 
-    public MessagesController(ChatterDbContext dbContext)
+    public MessagesController(ChatterDbContext dbContext, IConfiguration configuration)
     {
         _dbContext = dbContext;
+        _configuration = configuration;
     }
 
     [HttpPost]
@@ -28,6 +30,14 @@ public class MessagesController : ControllerBase
         if (!Validator.IsValidMessage(request.Message))
         {
             return BadRequest("Message must be provided.");
+        }
+
+        // If general is prohibited, disallow sending messages to the general chat.
+        // Currently messages are posted to the default/general channel, so block when set.
+        var prohibitGeneral = _configuration.GetValue<bool>("ServerSettings:ProhibitGeneral");
+        if (prohibitGeneral)
+        {
+            return Forbid("The general chat is currently prohibited.");
         }
 
         if (!Validator.IsValidUserId(request.UserId))
