@@ -21,12 +21,14 @@ public class ConfigController : ControllerBase
         var prohibitGroups = _configuration.GetValue<bool>("ServerSettings:ProhibitGroups");
         var privateMode = _configuration.GetValue<bool>("ServerSettings:PrivateMode");
         var prohibitGeneral = _configuration.GetValue<bool>("ServerSettings:ProhibitGeneral");
+        var userGroupLimit = _configuration.GetValue<int>("ServerSettings:UserGroupLimit", 5);
 
         return Ok(new
         {
             prohibitGroups,
             privateMode,
-            prohibitGeneral
+            prohibitGeneral,
+            userGroupLimit
         });
     }
 }

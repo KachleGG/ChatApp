@@ -74,6 +74,7 @@
           </form>
         </div>
 
+        <!-- Group management moved to sidebar (three-dots menu) -->
         <div class="profile-section danger-section">
           <h2>Actions</h2>
           <div class="danger-actions">
@@ -147,6 +148,7 @@
       </div>
     </div>
   </div>
+
 </template>
 
 <script setup lang="ts">
@@ -334,6 +336,8 @@ async function handleDeactivate() {
     deleting.value = false
   }
 }
+
+// Group manager moved to sidebar component (HomeView)
 </script>
 <style scoped>
 .profile-page {
@@ -761,6 +765,19 @@ async function handleDeactivate() {
 .dialog::-webkit-scrollbar-thumb {
   background-color: var(--bg-chat-dark-2);
   border-radius: 4px;
+}
+
+.groups-section .muted {
+  color: var(--text-purple-70);
+  margin-top: 6px;
+}
+.manage-groups-cta { margin-top: 12px; }
+.form-group-input {
+  padding: 10px 12px;
+  background-color: var(--input-bg);
+  border: 1px solid var(--input-border);
+  border-radius: 4px;
+  color: var(--text-white);
 }
 </style>
 

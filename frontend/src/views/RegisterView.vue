@@ -62,7 +62,7 @@
 
 
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 
 const router = useRouter()
@@ -74,6 +74,21 @@ const error = ref('')
 const showPassword = ref(false)
 const showConfirmPassword = ref(false)
 const registerLoading = ref(false)
+
+onMounted(async () => {
+  try {
+    const res = await fetch('/api/config')
+    if (res.ok) {
+      const cfg = await res.json()
+      if (cfg?.privateMode) {
+        // Redirect to login since registration is disabled
+        router.replace({ name: 'Login' })
+      }
+    }
+  } catch (e) {
+    // ignore - allow registration if config can't be fetched
+  }
+})
 
 async function handleRegister() {
   error.value = ''

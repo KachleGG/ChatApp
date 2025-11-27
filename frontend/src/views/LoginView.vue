@@ -35,7 +35,10 @@
           </button>
         </form>
 
-        <p class="auth-footer">Don't have an account? <router-link to="/register">Register here</router-link></p>
+        <p class="auth-footer">
+          <span v-if="!isPrivateMode">Don't have an account? <router-link to="/register">Register here</router-link></span>
+          <span v-else>This server is private — registration is disabled.</span>
+        </p>
 
         <div id="errorMessage" class="error-message" :class="{ show: error }">{{ error }}</div>
       </div>
@@ -45,7 +48,7 @@
 
 
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 
 const router = useRouter()
@@ -54,6 +57,7 @@ const password = ref('')
 const error = ref('')
 const showPassword = ref(false)
 const loginLoading = ref(false)
+const isPrivateMode = ref(false)
 
 async function handleLogin() {
   error.value = ''
@@ -78,6 +82,17 @@ async function handleLogin() {
     loginLoading.value = false
   }
 }
+onMounted(async () => {
+  try {
+    const res = await fetch('/api/config')
+    if (res.ok) {
+      const cfg = await res.json()
+      isPrivateMode.value = !!cfg?.privateMode
+    }
+  } catch (e) {
+    // ignore - if config can't be fetched, allow registration link by default
+  }
+})
 </script>
 <style scoped>
 * {

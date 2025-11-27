@@ -98,7 +98,7 @@ import { useRouter } from 'vue-router'
 const router = useRouter()
 const loading = ref(true)
 const isAdmin = ref(false)
-const config = ref({ prohibitGroups: false, privateMode: false, prohibitGeneral: false, httpUrl: '', httpsUrl: '' })
+const config = ref({ privateMode: false, prohibitGroups: false, prohibitGeneral: false, httpUrl: '', httpsUrl: '' })
 const originalConfig = ref<{ httpUrl: string; httpsUrl: string } | null>(null)
 const showRestartNotice = ref(false)
 const loadingConfig = ref(false)
@@ -142,8 +142,8 @@ async function fetchAdminConfig() {
       return
     }
     const data = await res.json()
-    config.value.prohibitGroups = !!data.prohibitGroups
     config.value.privateMode = !!data.privateMode
+    config.value.prohibitGroups = !!data.prohibitGroups
     config.value.prohibitGeneral = !!data.prohibitGeneral
     config.value.httpUrl = data.httpUrl || ''
     config.value.httpsUrl = data.httpsUrl || ''
@@ -480,4 +480,3 @@ async function saveConfig() {
 
 .restart-note { margin-top:12px; padding:10px; background: var(--bg-chat-sidebar-1); border-left:4px solid var(--warning-amber); color: var(--warning-amber); border-radius:4px }
 </style>
-

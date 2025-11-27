@@ -9,6 +9,7 @@ public class ChatterDbContext : DbContext
 
     public DbSet<User> Users { get; set; }
     public DbSet<Message> Messages { get; set; }
+    public DbSet<Group> Groups { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -38,6 +39,39 @@ public class ChatterDbContext : DbContext
                   .WithMany()
                   .IsRequired()
                   .OnDelete(DeleteBehavior.Restrict); // Prevent cascade delete
+
+            // Configure relationship: Message belongs to Group
+            entity.HasOne(e => e.Group)
+                  .WithMany()
+                  .HasForeignKey(e => e.GroupId)
+                  .IsRequired()
+                  .OnDelete(DeleteBehavior.Restrict); // Prevent cascade delete
+        });
+
+        // Configure Group entity
+        modelBuilder.Entity<Group>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Name).IsRequired().HasMaxLength(100);
+            entity.Property(e => e.CreatedAt).IsRequired();
+            entity.Property(e => e.IsDeactivated).HasDefaultValue(false);
+
+            // Configure relationship: Group belongs to Owner (User)
+            entity.HasOne(e => e.Owner)
+                  .WithMany()
+                  .HasForeignKey(e => e.OwnerId)
+                  .IsRequired()
+                  .OnDelete(DeleteBehavior.Restrict); // Prevent cascade delete
+
+            // Seed General group with Id = 1
+            entity.HasData(new Group
+            {
+                Id = 1,
+                Name = "General",
+                OwnerId = 1, // Assume first user (admin) owns General
+                IsDeactivated = false,
+                CreatedAt = new DateTime(2025, 1, 1, 0, 0, 0, DateTimeKind.Utc)
+            });
         });
     }
 }

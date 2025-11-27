@@ -3,6 +3,7 @@ using System;
 using Chatter.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -10,9 +11,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace Chatter.Migrations
 {
     [DbContext(typeof(ChatterDbContext))]
-    partial class ChatterDbContextModelSnapshot : ModelSnapshot
+    [Migration("20251127182125_AddGroupsAndGroupIdToMessages")]
+    partial class AddGroupsAndGroupIdToMessages
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder.HasAnnotation("ProductVersion", "10.0.0");
@@ -49,7 +52,7 @@ namespace Chatter.Migrations
                         new
                         {
                             Id = 1,
-                            CreatedAt = new DateTime(2025, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
+                            CreatedAt = new DateTime(2025, 11, 27, 18, 21, 19, 41, DateTimeKind.Utc).AddTicks(5175),
                             IsDeactivated = false,
                             Name = "General",
                             OwnerId = 1

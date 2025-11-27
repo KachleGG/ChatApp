@@ -3,15 +3,123 @@
     <!-- Sidebar -->
     <aside class="sidebar" v-if="!prohibitGroups">
       <div class="server-icon">
-        <span>AC</span>
+        <span>Chatter</span>
       </div>
-      
+
       <nav class="channels">
         <div class="channel-section">
-          <h3 class="channel-header">Anarchy</h3>
-          <p class="channel-description">Welcome to the chat</p>
+          <h3 class="channel-header">Groups</h3>
+          <p class="channel-description">Join or create groups</p>
         </div>
+
+        <ul class="group-list">
+          <li
+            v-for="g in groups"
+            :key="g.id"
+            :class="['group-item', { 'active': selectedGroupId === g.id } ]"
+            @click="selectGroup(g.id)"
+            title="Click to open group"
+          >
+            <div class="group-avatar">{{ g.name.charAt(0) }}</div>
+            <div class="group-meta">
+              <div class="group-name">{{ g.name }}</div>
+              <div class="group-owner">{{ g.ownerName || '' }}</div>
+            </div>
+          </li>
+        </ul>
+
+        <!-- Group creation moved to Profile → Manage Groups -->
+
       </nav>
+
+      <!-- Join Group Modal -->
+      <div class="modal-overlay" v-if="showJoinModal">
+        <div class="modal">
+          <header class="modal-header">
+            <h3>Join Group</h3>
+            <button class="modal-close" @click="(showJoinModal = false, joinCode = '', joinError = '')">×</button>
+          </header>
+          <div class="modal-body">
+            <p>Enter a group join code to request membership:</p>
+            <input ref="joinInputRef" v-model="joinCode" placeholder="Group code" class="form-group-input" />
+            <div v-if="joinError" style="color:var(--error);margin-top:8px">{{ joinError }}</div>
+          </div>
+          <footer class="modal-footer">
+            <button class="cancel-btn" @click="(showJoinModal = false, joinCode = '', joinError = '')">Cancel</button>
+            <button class="save-button" @click="joinGroupByCode" :disabled="joining || !joinCode.trim()">{{ joining ? 'Joining...' : 'Join' }}</button>
+          </footer>
+        </div>
+      </div>
+
+      <!-- Join group footer (outside scroll area) -->
+      <div class="join-group-footer">
+        <div style="display:flex;align-items:center;gap:8px;">
+          <div class="join-cta" @click="openJoinModal" title="Join group by code">
+            <span class="join-plus">+</span>
+            <span class="join-text">Join group</span>
+          </div>
+          <button class="more-btn" title="Manage groups" @click="openGroupManager">⋯</button>
+        </div>
+      </div>
+
+      <!-- Group Manager Modal (opened from the three-dots button) -->
+      <div class="modal-overlay" v-if="showGroupManager" @click.self="closeGroupManager">
+        <div class="modal">
+          <div class="modal-header">
+            <h3>Group Manager</h3>
+            <button class="modal-close" @click="closeGroupManager">×</button>
+          </div>
+
+          <form @submit.prevent="createGroupMG">
+            <div class="form-group" style="padding:16px 20px;">
+              <label for="mgName">Create New Group</label>
+              <div style="display:flex;gap:8px;align-items:center;margin-top:10px;">
+                <input id="mgName" v-model="mgNewName" placeholder="Group name" class="form-group-input" />
+                <button type="submit" class="save-button" :disabled="mgSaving">{{ mgSaving ? 'Creating...' : 'Create' }}</button>
+              </div>
+            </div>
+          </form>
+
+          <div class="modal-body-manager">
+            <h4>Your Groups</h4>
+            <div v-if="mgLoading" class="loading">Loading groups...</div>
+            <div v-else>
+              <div v-if="userGroups.length === 0" class="muted">You don't own any groups yet.</div>
+              <ul class="group-list-manager">
+                <li v-for="g in userGroups" :key="g.id">
+                  <template v-if="mgEditId === g.id">
+                    <div class="gm-left">
+                      <div class="gm-avatar">{{ g.name.charAt(0) }}</div>
+                      <div class="gm-info" style="flex:1;">
+                        <input v-model="mgEditName" class="form-group-input" />
+                      </div>
+                    </div>
+                    <div class="gm-actions">
+                      <button @click="updateGroupMG" class="save-button" :disabled="mgSaving">{{ mgSaving ? 'Saving...' : 'Save' }}</button>
+                      <button @click="(mgEditId = null, mgEditName = '')" class="cancel-btn">Cancel</button>
+                    </div>
+                  </template>
+                  <template v-else>
+                    <div class="gm-left">
+                      <div class="gm-avatar">{{ g.name.charAt(0) }}</div>
+                      <div class="gm-info">
+                        <div class="gm-name">{{ g.name }}</div>
+                        <div class="gm-owner">Owner: {{ g.ownerName || 'You' }}</div>
+                      </div>
+                    </div>
+                    <div class="gm-actions">
+                      <button v-if="mgEditId !== g.id" @click="startEditGroup(g)" class="change-password-button">Edit</button>
+                      <button @click="deleteGroupMG(g.id)" class="delete-button">Deactivate</button>
+                    </div>
+                  </template>
+                </li>
+              </ul>
+            </div>
+
+            <!-- Inline edit appears inside the list rows now -->
+          </div>
+        </div>
+      </div>
     </aside>
 
     <!-- Main Chat Area -->
@@ -19,7 +127,7 @@
       <!-- Header with Profile in Top Right -->
       <header class="chat-header">
         <div class="header-left">
-          <h2 class="channel-title">General</h2>
+              <h2 class="channel-title">{{ currentGroupName }}</h2>
         </div>
         
         <div class="header-right">
@@ -62,12 +170,12 @@
       </div>
 
       <!-- Message Input -->
-      <div v-if="!prohibitGeneral" class="message-input-container">
+      <div class="message-input-container">
         <form id="messageForm" @submit.prevent="sendMessage">
           <input
             type="text"
             id="messageInput"
-            placeholder="Message General"
+            :placeholder="currentGroupName ? `Message ${currentGroupName}` : 'Message'"
             class="message-input"
             v-model="newMessage"
             autocomplete="off"
@@ -83,26 +191,199 @@
         </form>
         <div v-if="error" class="error-banner">{{ error }}</div>
       </div>
-      <div v-else class="message-disabled-note">
-        Sending messages to the General channel is disabled by an administrator.
-      </div>
     </main>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, nextTick } from 'vue'
 import { useRouter } from 'vue-router'
 
 const router = useRouter()
 const prohibitGroups = ref(false)
 const prohibitGeneral = ref(false)
+const groups = ref<{ id: number; name: string; ownerId: number; ownerName?: string; isDeactivated?: boolean }[]>([])
+const selectedGroupId = ref<number>(1)
+const currentGroupName = ref('General')
+const userGroupLimit = ref<number | null>(null)
+const ownerGroupCount = ref<number>(0)
 const messages = ref<{ id: number; author: string; text: string; time: string; sentAt?: string; date?: string }[]>([])
 const newMessage = ref('')
 const loading = ref(true)
 const sending = ref(false)
 const error = ref('')
 const currentUser = ref<{ id: number; name: string; email: string; isAdmin: boolean } | null>(null)
+
+// Join group UI state (modal)
+const showJoinModal = ref(false)
+const joinCode = ref('')
+const joining = ref(false)
+const joinError = ref('')
+const joinInputRef = ref<HTMLInputElement | null>(null)
+
+function openJoinModal() {
+  joinError.value = ''
+  showJoinModal.value = true
+  nextTick(() => {
+    joinInputRef.value?.focus()
+  })
+}
+
+// --- Group Manager (opened from sidebar three-dots) ---
+const showGroupManager = ref(false)
+const mgLoading = ref(false)
+const userGroups = ref<Array<{ id: number; name: string; ownerId: number; ownerName?: string; isDeactivated?: boolean }>>([])
+const mgNewName = ref('')
+const mgEditId = ref<number | null>(null)
+const mgEditName = ref('')
+const mgSaving = ref(false)
+
+function openGroupManager() {
+  showGroupManager.value = true
+  loadUserGroups()
+}
+
+function closeGroupManager() {
+  showGroupManager.value = false
+  mgNewName.value = ''
+  mgEditId.value = null
+  mgEditName.value = ''
+}
+
+async function loadUserGroups() {
+  if (!currentUser.value) return
+  mgLoading.value = true
+  try {
+    const res = await fetch('/api/groups', { credentials: 'include' })
+    if (!res.ok) {
+      userGroups.value = []
+      return
+    }
+    const data = await res.json()
+    userGroups.value = data.filter((g: any) => g.ownerId === currentUser.value!.id && !g.isDeactivated)
+  } catch (e) {
+    console.warn('Failed to load user groups', e)
+    userGroups.value = []
+  } finally {
+    mgLoading.value = false
+  }
+}
+
+async function createGroupMG() {
+  if (!mgNewName.value.trim() || !currentUser.value) return
+  mgSaving.value = true
+  try {
+    const res = await fetch('/api/groups', {
+      method: 'POST',
+      credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name: mgNewName.value.trim() })
+    })
+    if (!res.ok) {
+      const j = await res.json().catch(() => null)
+      const msg = j?.message || `Create failed: ${res.status}`
+      alert(msg)
+      return
+    }
+    mgNewName.value = ''
+    await loadUserGroups()
+    // Also reload all groups in the sidebar
+    await loadGroups()
+  } catch (e) {
+    console.warn('Create group failed', e)
+    alert('Network error while creating group')
+  } finally {
+    mgSaving.value = false
+  }
+}
+
+function startEditGroup(g: { id: number; name: string }) {
+  mgEditId.value = g.id
+  mgEditName.value = g.name
+}
+
+async function updateGroupMG() {
+  if (mgEditId.value === null) return
+  mgSaving.value = true
+  try {
+    const res = await fetch(`/api/groups/${mgEditId.value}`, {
+      method: 'PUT',
+      credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name: mgEditName.value.trim() })
+    })
+    if (!res.ok) {
+      const j = await res.json().catch(() => null)
+      const msg = j?.message || `Update failed: ${res.status}`
+      alert(msg)
+      return
+    }
+    mgEditId.value = null
+    mgEditName.value = ''
+    await loadUserGroups()
+    await loadGroups()
+  } catch (e) {
+    console.warn('Update group failed', e)
+    alert('Network error while updating group')
+  } finally {
+    mgSaving.value = false
+  }
+}
+
+async function deleteGroupMG(id: number) {
+  if (!confirm('Are you sure you want to deactivate this group?')) return
+  try {
+    const res = await fetch(`/api/groups/${id}`, {
+      method: 'DELETE',
+      credentials: 'include'
+    })
+    if (!res.ok) {
+      const j = await res.json().catch(() => null)
+      const msg = j?.message || `Delete failed: ${res.status}`
+      alert(msg)
+      return
+    }
+    await loadUserGroups()
+    await loadGroups()
+  } catch (e) {
+    console.warn('Delete group failed', e)
+    alert('Network error while deleting group')
+  }
+}
+
+async function joinGroupByCode() {
+  if (!joinCode.value.trim()) return
+  joining.value = true
+  try {
+    const res = await fetch('/api/groups/join', {
+      method: 'POST',
+      credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ code: joinCode.value.trim() })
+    })
+    if (!res.ok) {
+      const j = await res.json().catch(() => null)
+      const msg = j?.message || `Join failed: ${res.status}`
+      joinError.value = msg
+      return
+    }
+    const joined = await res.json().catch(() => null)
+    // reload groups and select joined group if provided
+    await loadGroups()
+    if (joined && joined.id) {
+      selectedGroupId.value = joined.id
+      await fetchMessages()
+    }
+    showJoinModal.value = false
+    joinCode.value = ''
+    joinError.value = ''
+  } catch (e) {
+    console.warn('Join group failed', e)
+    joinError.value = 'Network error while joining group'
+  } finally {
+    joining.value = false
+  }
+}
 
 async function getCurrentUser() {
   try {
@@ -154,9 +435,12 @@ function formatTimeHHMM(iso?: string) {
 
 async function fetchMessages() {
   try {
-    const res = await fetch('/api/messages?limit=50', { credentials: 'include' })
-    if (!res.ok) return
-    const data = await res.json()
+    // If General is prohibited, or no group is selected (0), do not fetch messages for General
+    if (selectedGroupId.value === 0 || (selectedGroupId.value === 1 && prohibitGeneral.value)) {
+      messages.value = []
+      return
+    }
+    const data = await (await fetch(`/api/messages?limit=50&groupId=${selectedGroupId.value}`, { credentials: 'include' })).json()
     // Backend returns [{ id, text, sentFrom: { id, name }, sentAt }]
     messages.value = data.map((m: any) => ({
       id: m.id,
@@ -180,6 +464,7 @@ onMounted(async () => {
   }
   currentUser.value = user
   await fetchConfig()
+  await loadGroups()
   await fetchMessages()
   loading.value = false
 })
@@ -193,10 +478,73 @@ async function fetchConfig() {
     prohibitGroups.value = !!data.prohibitGroups
     // server may return `prohibitGeneral` to block posting to General channel
     prohibitGeneral.value = !!data.prohibitGeneral
+    // user group limit (optional)
+    userGroupLimit.value = typeof data.userGroupLimit === 'number' ? data.userGroupLimit : null
   } catch (e) {
     console.warn('Failed to fetch config:', e)
   }
 }
+
+async function loadGroups() {
+  try {
+    const res = await fetch('/api/groups', { credentials: 'include' })
+    if (!res.ok) {
+      groups.value = []
+      return
+    }
+    let data = await res.json()
+    // If server didn't return General (because it's prohibited), don't add it client-side.
+    // Otherwise ensure General exists in the list (id=1)
+    if (!data.find((g: any) => g.id === 1) && !prohibitGeneral.value) {
+      data.unshift({ id: 1, name: 'General', ownerId: 1, ownerName: 'System' })
+    }
+    groups.value = data
+    // If selected group doesn't exist, select General
+    if (!groups.value.find(g => g.id === selectedGroupId.value)) {
+      if (groups.value.length > 0) {
+        selectedGroupId.value = groups.value[0]!.id
+      } else {
+        // No groups available (General may be prohibited) — clear selection
+        selectedGroupId.value = 0
+      }
+    }
+    const g = groups.value.find(g => g.id === selectedGroupId.value)
+    currentGroupName.value = g ? g.name : ''
+    // compute owner's active group count
+    if (currentUser.value) {
+      ownerGroupCount.value = groups.value.filter(gr => gr.ownerId === currentUser.value!.id && !gr.isDeactivated).length
+    } else {
+      ownerGroupCount.value = 0
+    }
+  } catch (e) {
+    console.warn('Failed to load groups', e)
+    groups.value = []
+  }
+}
+
+function selectGroup(id: number) {
+  // If attempting to select General while it's prohibited, ignore selection
+  if (id === 1 && prohibitGeneral.value) {
+    // if there are other groups, pick the first one; otherwise clear selection
+    const alt = groups.value.find(g => g.id !== 1)
+    if (alt) {
+      selectedGroupId.value = alt.id
+    } else {
+      selectedGroupId.value = 0
+      currentGroupName.value = ''
+      messages.value = []
+      return
+    }
+  } else {
+    selectedGroupId.value = id
+  }
+  const g = groups.value.find(g => g.id === selectedGroupId.value)
+  currentGroupName.value = g ? g.name : ''
+  loading.value = true
+  fetchMessages().finally(() => (loading.value = false))
+}
+
+// Group creation is handled in the Profile -> Manage Groups dialog
 
 async function sendMessage() {
   error.value = ''
@@ -210,7 +558,7 @@ async function sendMessage() {
 
   sending.value = true
   try {
-    const payload = { Message: text, UserId: currentUser.value.id }
+    const payload = { Message: text, UserId: currentUser.value.id, GroupId: selectedGroupId.value }
     const res = await fetch('/api/messages', {
       method: 'POST',
       credentials: 'include',
@@ -311,7 +659,7 @@ body {
 
 .server-icon {
   inline-size: 100%;
-  block-size: clamp(48px, 8vh, 56px);
+  block-size: var(--header-height);
   background-color: var(--accent-purple);
   display: flex;
   align-items: center;
@@ -322,12 +670,207 @@ body {
   border-block-end: 1px solid var(--border-color);
 }
 
-.channels {
-  flex: 1;
-  padding-block: var(--spacing-lg);
-  padding-inline: var(--spacing-md);
-  overflow-y: auto;
+.group-list {
+  list-style: none;
+  margin-top: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
 }
+
+.group-item {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  padding: 8px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background-color 0.15s;
+}
+
+.group-item:hover { background-color: rgba(255,255,255,0.02); }
+
+.group-item.active { background-color: rgba(114,137,218,0.06); border-left: 4px solid var(--accent-purple); }
+
+.group-avatar {
+  inline-size: 36px;
+  block-size: 36px;
+  border-radius: 8px;
+  background-color: var(--accent-purple);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+}
+
+.group-meta { display: flex; flex-direction: column; }
+.group-name { font-weight: 600; }
+.group-owner { font-size: 0.8rem; color: var(--text-muted); }
+
+/* create-group UI moved to Profile -> Manage Groups dialog */
+
+.join-group-footer {
+  position: sticky;
+  bottom: 0;
+  padding: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(180deg, rgba(0,0,0,0.0), rgba(0,0,0,0.06));
+}
+.join-cta {
+  display:flex;gap:8px;align-items:center;cursor:pointer;padding:8px 12px;border-radius:8px;transition:background 0.15s;border:1px solid transparent
+}
+.join-cta:hover { background: rgba(114,137,218,0.06); }
+.join-plus { display:inline-flex;width:28px;height:28px;border-radius:6px;background:var(--accent-purple);color:var(--text-primary);align-items:center;justify-content:center;font-weight:700 }
+.join-text { color:var(--text-primary);font-weight:600 }
+.join-input-wrap { display:flex;gap:8px;align-items:center }
+.join-input { padding:8px;border-radius:6px;border:1px solid var(--border-color); background:var(--secondary-dark); color:var(--text-primary) }
+ .more-btn {
+    background: transparent;
+    border: 1px solid transparent;
+    color: var(--text-purple-70);
+    padding: 6px 10px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 18px;
+    line-height: 1;
+  }
+  .more-btn:hover { background: rgba(255,255,255,0.02); color: var(--text-white); border-color: var(--border-color) }
+
+/* Modal styles (used for Join Group) */
+  .modal-overlay {
+  position: fixed;
+  inset: 0;
+  background-color: rgba(0,0,0,0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1200;
+  padding: 16px;
+}
+  .modal {
+    background-color: var(--bg-chat-sidebar-1);
+    border-radius: 10px;
+    width: 100%;
+    max-width: 520px;
+    box-shadow: 0 16px 48px rgba(0,0,0,0.6);
+    overflow: hidden;
+    border: 1px solid var(--border-white-5);
+    display: flex;
+    flex-direction: column;
+  }
+  .modal-header { display:flex;align-items:center;justify-content:space-between;padding:18px 20px;border-bottom:1px solid var(--border-white-5); background: linear-gradient(180deg, rgba(255,255,255,0.02), transparent) }
+  .modal-header h3 { margin:0;font-size:18px;color:var(--text-white);font-weight:700 }
+  .modal-body { padding:18px 20px; display:flex; flex-direction:column; gap:12px }
+  .modal-footer { padding:14px 20px; display:flex; gap:8px; justify-content:flex-end; border-top:1px solid var(--border-white-5); background: var(--bg-chat-sidebar-1) }
+  .modal-close { background:transparent;border:none;font-size:20px;cursor:pointer;color:var(--text-purple-70);padding:6px;border-radius:6px }
+  .modal-close:hover { background:var(--bg-chat-sidebar-2); color:var(--text-white) }
+
+  /* Group Manager specific styles */
+  .modal .form-group { padding: 12px 20px; }
+  .modal h4 { color: var(--text-white); margin: 8px 0; font-size: 15px; }
+  .modal .muted { color: var(--text-muted); font-size: 13px }
+
+  .group-list-manager { list-style: none; padding: 0; margin: 12px 0; }
+  .group-list-manager li { display:flex; align-items:center; justify-content:space-between; gap:12px; padding:10px 0; border-bottom:1px solid var(--border-white-5); }
+  .group-list-manager .gm-left { display:flex; gap:12px; align-items:center }
+  .group-list-manager .gm-avatar { width:40px; height:40px; border-radius:8px; background:var(--bg-chat-dark-1); display:flex; align-items:center; justify-content:center; color:var(--text-white); font-weight:700 }
+  .group-list-manager .gm-info { display:flex; flex-direction:column }
+  .group-list-manager .gm-name { font-weight:700; color:var(--text-white) }
+  .group-list-manager .gm-owner { font-size:12px; color:var(--text-purple-70) }
+
+  .group-list-manager .gm-actions { display:flex; gap:8px; align-items:center }
+  .group-list-manager .gm-actions .change-password-button,
+  .group-list-manager .gm-actions .delete-button { padding:6px 10px; font-size:13px }
+
+  /* Group action button colors */
+  .group-list-manager .gm-actions .change-password-button {
+    background-color: var(--bg-chat-sidebar-2);
+    color: var(--text-white);
+    border: none;
+    border-radius: 6px;
+  }
+  .group-list-manager .gm-actions .change-password-button:hover { filter: brightness(0.95); }
+
+  .group-list-manager .gm-actions .delete-button {
+    background-color: var(--border-red-30);
+    color: var(--text-white);
+    border: none;
+    border-radius: 6px;
+  }
+  .group-list-manager .gm-actions .delete-button:hover { filter: brightness(0.9); }
+
+  .modal .edit-row { display:flex; gap:8px; align-items:center; margin-top:10px }
+  .modal .edit-row .form-group-input { max-width: 360px }
+
+  /* Make the manager body scrollable when lots of groups exist */
+  .modal .modal-body-manager {
+    padding: 0 20px 20px 20px;
+    max-height: calc(70vh - 120px);
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  /* Ensure list uses compact rows inside scrollable area */
+  .modal .group-list-manager { margin: 8px 0 0 0; padding: 0; }
+
+  /* Modal-scoped button colors for manager actions (fallback selectors) */
+  .modal .change-password-button { background-color: var(--bg-chat-sidebar-2); color: var(--text-white); border: none; border-radius: 6px; padding:6px 10px }
+  .modal .change-password-button:hover { filter: brightness(0.95); }
+  .modal .delete-button { background-color: var(--border-red-30); color: var(--text-white); border: none; border-radius: 6px; padding:6px 10px }
+  .modal .delete-button:hover { filter: brightness(0.9); }
+
+  /* Loading state inside modal */
+  .modal .loading { padding: 14px 20px; color: var(--text-purple-70) }
+
+  @media (max-width: 640px) {
+    .modal { max-width: 92%; }
+    .group-list-manager .gm-avatar { width:34px; height:34px }
+    .group-list-manager .gm-name { font-size: 14px }
+  }
+
+  /* Input used throughout app */
+  .form-group-input {
+    width: 100%;
+    box-sizing: border-box;
+    padding: 10px 12px;
+    border-radius: 6px;
+    border: 1px solid var(--input-border);
+    background: var(--input-bg);
+    color: var(--text-white);
+    font-size: 14px;
+  }
+  .form-group-input:focus { outline: none; border-color: var(--brand-blue-primary); box-shadow: 0 0 0 3px rgba(114,137,218,0.06) }
+
+  .modal .save-button { padding: 8px 14px; font-size: 14px }
+  .modal .cancel-btn { padding: 8px 12px; font-size: 14px }
+
+  /* Modal button colors (consistent across Join + Group Manager) */
+  .modal .save-button {
+    background-color: var(--brand-blue-primary);
+    color: var(--text-white);
+    border: none;
+    border-radius: 6px;
+  }
+  .modal .save-button:hover:not(:disabled) { filter: brightness(0.95); }
+
+  .modal .cancel-btn {
+    background: transparent;
+    color: var(--text-white);
+    border: 1px solid var(--border-white-10);
+    border-radius: 6px;
+  }
+  .modal .cancel-btn:hover { background: var(--bg-chat-sidebar-2); }
+
+    .channels {
+      flex: 1;
+      padding-block: var(--spacing-lg);
+      padding-inline: var(--spacing-md);
+      overflow-y: auto;
+    }
 
 .channel-section {
   padding-inline: var(--spacing-sm);

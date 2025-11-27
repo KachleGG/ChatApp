@@ -59,6 +59,24 @@ router.beforeEach(async (to, from, next) => {
 
   // Allow navigation to login/register without auth check
   if (publicPages.includes(routeName)) {
+    // If user is trying to access the Register page, check server config for private mode
+    if (routeName === 'Register') {
+      try {
+        const cfgRes = await fetch('/api/config')
+        if (cfgRes.ok) {
+          const cfg = await cfgRes.json()
+          if (cfg?.privateMode) {
+            // Registration is disabled in private mode - redirect to Login
+            next({ name: 'Login' })
+            return
+          }
+        }
+      } catch (e) {
+        // If config can't be fetched, be conservative and disallow registration
+        next({ name: 'Login' })
+        return
+      }
+    }
     next()
     return
   }

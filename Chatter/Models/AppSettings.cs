@@ -17,6 +17,7 @@ public class ServerSettings
 {
     public bool PrivateMode { get; set; } = false;
     public bool ProhibitGroups { get; set; } = false;
+    public bool ProhibitGeneral { get; set; } = false;
 }
 
 public class KestrelSettings

@@ -3,8 +3,6 @@ using Chatter.Models.DTOs;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using System.Text.Json.Nodes;
-using Microsoft.AspNetCore.Hosting;
-using Microsoft.Extensions.Configuration;
 
 namespace Chatter.Controllers;
 
@@ -29,7 +27,8 @@ public class AdminController : ControllerBase
     public IActionResult GetConfig()
     {
         var userId = HttpContext.Session.GetInt32("UserId");
-        if (userId == null) return Forbid();
+        if (userId == null)
+            return Forbid();
 
         var user = _dbContext.Users.Find(userId.Value);
         if (user == null || user.IsDeactivated)
@@ -38,16 +37,17 @@ public class AdminController : ControllerBase
             return Forbid();
         }
 
-        if (!user.IsAdmin) return Forbid();
+        if (!user.IsAdmin)
+            return Forbid();
 
-        var prohibit = _configuration.GetValue<bool>("ServerSettings:ProhibitGroups");
-        var priv = _configuration.GetValue<bool>("ServerSettings:PrivateMode");
+        var privateMode = _configuration.GetValue<bool>("ServerSettings:PrivateMode");
+        var prohibitGroups = _configuration.GetValue<bool>("ServerSettings:ProhibitGroups");
         var prohibitGeneral = _configuration.GetValue<bool>("ServerSettings:ProhibitGeneral");
 
         var httpUrl = _configuration.GetValue<string>("Kestrel:Endpoints:Http:Url");
         var httpsUrl = _configuration.GetValue<string>("Kestrel:Endpoints:Https:Url");
 
-        return Ok(new { prohibitGroups = prohibit, privateMode = priv, prohibitGeneral, httpUrl, httpsUrl });
+        return Ok(new { privateMode, prohibitGroups, prohibitGeneral, httpUrl, httpsUrl });
     }
 
     // PUT api/admin/config
@@ -55,7 +55,8 @@ public class AdminController : ControllerBase
     public IActionResult UpdateConfig([FromBody] AdminConfigRequest? request)
     {
         var userId = HttpContext.Session.GetInt32("UserId");
-        if (userId == null) return Forbid();
+        if (userId == null)
+            return Forbid();
 
         var user = _dbContext.Users.Find(userId.Value);
         if (user == null || user.IsDeactivated)
@@ -64,14 +65,17 @@ public class AdminController : ControllerBase
             return Forbid();
         }
 
-        if (!user.IsAdmin) return Forbid();
+        if (!user.IsAdmin)
+            return Forbid();
 
         if (request == null)
             return BadRequest(new { message = "Request body required" });
 
-        var path = Path.Combine(_env.ContentRootPath, "appsettings.json");
+        // Determine which config file to update based on environment
+        var fileName = _env.IsDevelopment() ? "appsettings.Development.json" : "appsettings.json";
+        var path = Path.Combine(_env.ContentRootPath, fileName);
         if (!System.IO.File.Exists(path))
-            return NotFound(new { message = "appsettings.json not found" });
+            return NotFound(new { message = $"{fileName} not found" });
 
         try
         {
@@ -80,11 +84,11 @@ public class AdminController : ControllerBase
 
             var serverNode = node["ServerSettings"] as JsonObject ?? new JsonObject();
 
-            if (request.ProhibitGroups.HasValue)
-                serverNode["ProhibitGroups"] = request.ProhibitGroups.Value;
-
             if (request.PrivateMode.HasValue)
                 serverNode["PrivateMode"] = request.PrivateMode.Value;
+
+            if (request.ProhibitGroups.HasValue)
+                serverNode["ProhibitGroups"] = request.ProhibitGroups.Value;
 
             if (request.ProhibitGeneral.HasValue)
                 serverNode["ProhibitGeneral"] = request.ProhibitGeneral.Value;
@@ -109,8 +113,10 @@ public class AdminController : ControllerBase
                 endpointsNode["Https"] = httpsNode;
             }
 
-            if (endpointsNode.Count > 0) kestrelNode["Endpoints"] = endpointsNode;
-            if (kestrelNode.Count > 0) node["Kestrel"] = kestrelNode;
+            if (endpointsNode.Count > 0)
+                kestrelNode["Endpoints"] = endpointsNode;
+            if (kestrelNode.Count > 0)
+                node["Kestrel"] = kestrelNode;
 
             var writeOpts = new System.Text.Json.JsonSerializerOptions { WriteIndented = true };
             System.IO.File.WriteAllText(path, node.ToJsonString(writeOpts));

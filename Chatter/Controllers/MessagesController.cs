@@ -32,12 +32,26 @@ public class MessagesController : ControllerBase
             return BadRequest("Message must be provided.");
         }
 
-        // If general is prohibited, disallow sending messages to the general chat.
-        // Currently messages are posted to the default/general channel, so block when set.
-        var prohibitGeneral = _configuration.GetValue<bool>("ServerSettings:ProhibitGeneral");
-        if (prohibitGeneral)
+        // Check if posting to General group (Id = 1)
+        if (request.GroupId == 1)
         {
-            return Forbid("The general chat is currently prohibited.");
+            var prohibitGeneral = _configuration.GetValue<bool>("ServerSettings:ProhibitGeneral");
+            if (prohibitGeneral)
+            {
+                return Forbid("The general chat is currently prohibited.");
+            }
+        }
+
+        // Verify group exists and is not deactivated
+        var group = await _dbContext.Groups.FindAsync(request.GroupId);
+        if (group == null)
+        {
+            return NotFound("Group not found.");
+        }
+
+        if (group.IsDeactivated)
+        {
+            return BadRequest("This group is deactivated.");
         }
 
         if (!Validator.IsValidUserId(request.UserId))
@@ -55,24 +69,38 @@ public class MessagesController : ControllerBase
         {
             Text = request.Message,
             SentFrom = user,
-            SentAt = DateTime.UtcNow
+            SentAt = DateTime.UtcNow,
+            GroupId = request.GroupId
         };
 
         _dbContext.Messages.Add(message);
         await _dbContext.SaveChangesAsync();
 
-        return Ok(new { id = message.Id, text = message.Text, sentFrom = new { id = user.Id, name = user.Name }, sentAt = message.SentAt });
+        return Ok(new { id = message.Id, text = message.Text, sentFrom = new { id = user.Id, name = user.Name }, sentAt = message.SentAt, groupId = message.GroupId });
     }
 
-    // GET api/messages?limit=20&beforeId=123
-    // Returns latest messages ordered desc by Id (newest first). For infinite scroll, pass beforeId to load older messages.
+    // GET api/messages?limit=20&beforeId=123&groupId=1
+    // Returns latest messages for a specific group ordered desc by Id (newest first). For infinite scroll, pass beforeId to load older messages.
     [HttpGet]
-    public async Task<IActionResult> GetMessages([FromQuery] int limit = 20, [FromQuery] int? beforeId = null)
+    public async Task<IActionResult> GetMessages([FromQuery] int limit = 20, [FromQuery] int? beforeId = null, [FromQuery] int groupId = 1)
     {
         limit = Math.Clamp(limit, 1, 100);
 
+        // Verify group exists
+        var group = await _dbContext.Groups.FindAsync(groupId);
+        if (group == null)
+        {
+            return NotFound("Group not found.");
+        }
+
+        if (group.IsDeactivated)
+        {
+            return BadRequest("This group is deactivated.");
+        }
+
         var query = _dbContext.Messages
             .Include(m => m.SentFrom)
+            .Where(m => m.GroupId == groupId)
             .OrderByDescending(m => m.Id)
             .AsQueryable();
 
@@ -91,7 +119,8 @@ public class MessagesController : ControllerBase
                 id = m.Id,
                 text = m.Text,
                 sentFrom = new { id = m.SentFrom.Id, name = m.SentFrom.Name },
-                sentAt = m.SentAt
+                sentAt = m.SentAt,
+                groupId = m.GroupId
             })
             .ToList();
 
