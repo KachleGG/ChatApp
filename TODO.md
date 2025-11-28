@@ -4,24 +4,21 @@
 
 - [ ] Create update standard
 - [ ] Complete AdminView remake
-- [ ] Create private mode
+- [x] Create private mode
   - [x] remove option for registering when private mode
-  - [ ] Add private mode registering url creation
-    - [ ] Create an enpoint
-    - [ ] Create url creator
-    - [ ] Make it so the url expires after some time or after the person registers
-- [x] Add groups
-  - [x] Add database table
-  - [x] Add appsettings.json entry for permitting groups
-  - [x] Add max groups per user setting
-  - [x] Make the group codes creation
-  - [x] Make groups only available to users with the codes to those groups
-  - [x] Add option for leaving a group
+  - [x] Add private mode registering code creation
+    - [x] Create an enpoint
+    - [x] Make code creator
+    - [x] Make it so the code expires after some time or after the person/people register
+    - [x] Implement it into the UI
 - [ ] Add chat restrictions/filtering(swear words.....)
 - [ ] Add optional database backup
+- [ ] Getting server info on clicking something
+- [ ] Adding admins for the server owner
 
 ## Frontend
 
 - [ ] Make better icons
+- [ ] Getting server info on clicking something
 
 ---

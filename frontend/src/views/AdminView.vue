@@ -86,6 +86,66 @@
 
           <div v-if="loadingConfig" class="loading">Loading config...</div>
         </div>
+
+        <div class="admin-section" style="margin-top:16px">
+          <h2>Invite Codes (Private Mode)</h2>
+          <p>Create invite codes that allow limited registrations while Private Mode is enabled.</p>
+
+            <div class="invite-form-grid" style="margin-bottom:12px">
+              <div class="invite-form-row">
+                <label class="invite-label">Note</label>
+                <input class="text-input" v-model="inviteNote" placeholder="Note (optional)" />
+                <div class="invite-help">Optional note for admins to remember the invite purpose (visible only to admins).</div>
+              </div>
+
+              <div class="invite-form-row">
+                <label class="invite-label">Max Uses</label>
+                <input type="number" class="text-input" v-model.number="inviteMaxUses" min="0" style="width:120px" />
+                <div class="invite-help">Number of registrations allowed for this invite (0 = unlimited)</div>
+              </div>
+
+              <div class="invite-form-row">
+                <label class="invite-label">Expires</label>
+                <select v-model.number="inviteExpiresSeconds" class="text-input" style="width:160px">
+                  <option :value="0">No expiry</option>
+                  <option :value="86400">1 day</option>
+                  <option :value="604800">1 week</option>
+                  <option :value="2592000">30 days</option>
+                </select>
+                <div class="invite-help">Expiry time for the invite (0 = no expiry)</div>
+              </div>
+
+              <div class="invite-form-row invite-create-col">
+                <label class="invite-label">&nbsp;</label>
+                <div style="display:flex;gap:8px;align-items:center">
+                  <button class="save-btn" @click="createInvite" :disabled="creatingInvite">{{ creatingInvite ? 'Creating...' : 'Create Invite' }}</button>
+                </div>
+              </div>
+            </div>
+
+          <div v-if="invitesLoading" class="loading">Loading invites...</div>
+          <div v-else>
+            <table style="width:100%;border-collapse:collapse">
+              <thead>
+                <tr style="text-align:left;color:var(--text-purple-70)">
+                  <th>Code</th><th>Uses</th><th>Expires</th><th>Note</th><th></th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-for="inv in invites" :key="inv.code" style="border-top:1px solid var(--border-white-5)">
+                  <td style="padding:8px 6px"><code>{{ inv.code }}</code></td>
+                  <td style="padding:8px 6px">{{ inv.usesCount }} / {{ inv.maxUses === 0 ? '∞' : inv.maxUses }}</td>
+                  <td style="padding:8px 6px">{{ inv.expiresAt ? new Date(inv.expiresAt).toLocaleString() : '—' }}</td>
+                  <td style="padding:8px 6px">{{ inv.note || '—' }}</td>
+                  <td style="padding:8px 6px;text-align:right">
+                    <button class="save-btn" @click="copyInviteCode(inv.code)">Copy</button>
+                    <button class="delete-button" @click="revokeInvite(inv.code)">Revoke</button>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
       </div>
     </div>
   </div>
@@ -104,6 +164,12 @@ const showRestartNotice = ref(false)
 const loadingConfig = ref(false)
 const saving = ref(false)
 const saveMessage = ref('')
+const invites = ref<Array<any>>([])
+const invitesLoading = ref(false)
+const creatingInvite = ref(false)
+const inviteNote = ref('')
+const inviteMaxUses = ref<number>(1)
+const inviteExpiresSeconds = ref<number>(0)
 
 async function checkAdmin() {
   try {
@@ -132,6 +198,9 @@ onMounted(async () => {
   loading.value = false
   if (isAdmin.value) await fetchAdminConfig()
 })
+onMounted(async () => {
+  if (isAdmin.value) await loadInvites()
+})
 
 async function fetchAdminConfig() {
   loadingConfig.value = true
@@ -154,7 +223,59 @@ async function fetchAdminConfig() {
     console.warn(e)
   } finally {
     loadingConfig.value = false
+    // load invites after config loads
+    if (isAdmin.value) await loadInvites()
   }
+}
+
+async function loadInvites() {
+  invitesLoading.value = true
+  try {
+    const res = await fetch('/api/invites', { credentials: 'include' })
+    if (!res.ok) { invites.value = []; return }
+    invites.value = await res.json()
+  } catch (e) { invites.value = []; console.warn(e) }
+  finally { invitesLoading.value = false }
+}
+
+async function createInvite() {
+  creatingInvite.value = true
+  try {
+    const payload = { maxUses: inviteMaxUses.value || 0, expiresInSeconds: inviteExpiresSeconds.value || 0, note: inviteNote.value }
+    const res = await fetch('/api/invites', { method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) })
+    if (!res.ok) {
+      const txt = await res.text().catch(() => '')
+      alert(`Create invite failed: ${res.status} ${txt}`)
+      return
+    }
+    const data = await res.json()
+    await loadInvites()
+    // show copy via prompt
+    try { await navigator.clipboard.writeText(data.code); alert('Invite code copied to clipboard') } catch { /* ignore */ }
+    inviteNote.value = ''
+    inviteMaxUses.value = 1
+    inviteExpiresSeconds.value = 0
+  } catch (e) { console.warn(e); alert('Network error creating invite') }
+  finally { creatingInvite.value = false }
+}
+
+function copyInviteCode(code: string) {
+  if (!code) return
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(code).then(() => alert('Invite code copied'))
+  } else {
+    const el = document.createElement('textarea'); el.value = code; document.body.appendChild(el); el.select(); document.execCommand('copy'); document.body.removeChild(el);
+    alert('Invite code copied')
+  }
+}
+
+async function revokeInvite(code: string) {
+  if (!confirm('Revoke invite?')) return
+  try {
+    const res = await fetch(`/api/invites/${code}/revoke`, { method: 'POST', credentials: 'include' })
+    if (!res.ok) { const txt = await res.text().catch(() => ''); alert(`Revoke failed: ${res.status} ${txt}`); return }
+    await loadInvites()
+  } catch (e) { console.warn(e); alert('Network error while revoking invite') }
 }
 
 async function saveConfig() {
@@ -478,5 +599,54 @@ async function saveConfig() {
 .save-btn:disabled { opacity: .5; cursor: not-allowed }
 .status { color: var(--text-purple-70) }
 
+/* Revoke / delete invite button styling */
+.delete-button {
+  background: transparent;
+  color: var(--border-red-30);
+  border: 1px solid var(--border-red-30);
+  padding: 6px 10px;
+  border-radius: 6px;
+  cursor: pointer;
+  margin-left: 8px;
+  transition: background-color 0.12s ease, color 0.12s ease, transform 0.06s ease;
+}
+.delete-button:hover {
+  background: var(--border-red-30);
+  color: var(--text-white);
+}
+.delete-button:active { transform: translateY(1px); }
+.delete-button:disabled { opacity: 0.5; cursor: not-allowed; }
+
 .restart-note { margin-top:12px; padding:10px; background: var(--bg-chat-sidebar-1); border-left:4px solid var(--warning-amber); color: var(--warning-amber); border-radius:4px }
+
+/* Invite form grid (table-like layout) */
+.invite-form-grid {
+  display: grid;
+  grid-template-columns: 140px 1fr 260px;
+  gap: 8px 12px;
+  align-items: center;
+}
+.invite-form-row {
+  display: contents;
+}
+.invite-label {
+  color: var(--text-purple-70);
+  font-weight: 600;
+  padding-right: 8px;
+  align-self: start;
+}
+.invite-help {
+  font-size: 13px;
+  color: var(--text-purple-70);
+  margin-top: 6px;
+}
+.invite-create-col { grid-column: 2 / 3; }
+
+@media (max-width: 720px) {
+  .invite-form-grid { grid-template-columns: 1fr; }
+  .invite-form-row { display: block; }
+  .invite-label { margin-bottom: 6px; }
+  .invite-help { margin-top: 6px; }
+  .invite-create-col { grid-column: auto; margin-top: 6px; }
+}
 </style>

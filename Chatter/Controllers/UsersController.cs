@@ -4,6 +4,7 @@ using Chatter.Models;
 using Chatter.Models.DTOs;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
 
 namespace Chatter.Controllers;
 
@@ -12,10 +13,12 @@ namespace Chatter.Controllers;
 public class UsersController : ControllerBase
 {
     private readonly ChatterDbContext _dbContext;
+    private readonly IConfiguration _configuration;
 
-    public UsersController(ChatterDbContext dbContext)
+    public UsersController(ChatterDbContext dbContext, IConfiguration configuration)
     {
         _dbContext = dbContext;
+        _configuration = configuration;
     }
 
     [HttpPost]
@@ -60,8 +63,100 @@ public class UsersController : ControllerBase
         var anyUsers = await _dbContext.Users.AnyAsync();
         var isAdmin = !anyUsers; // first user becomes admin
 
-        // Create the user
-        var user = new User
+        // If server is in private mode, require an invite code and consume it atomically
+        var privateMode = _configuration.GetValue<bool>("ServerSettings:PrivateMode");
+
+        if (privateMode)
+        {
+            if (string.IsNullOrWhiteSpace(request.InviteCode))
+            {
+                return Forbid("Registration is by invite only. Provide a valid invite code.");
+            }
+
+            // Try to create user and consume invite within a transaction; handle concurrency on invite usage
+            var maxAttempts = 4;
+            for (int attempt = 0; attempt < maxAttempts; attempt++)
+            {
+                using var tx = await _dbContext.Database.BeginTransactionAsync();
+                try
+                {
+                    var code = request.InviteCode!.Trim().ToUpperInvariant();
+                    var invite = await _dbContext.Invites.SingleOrDefaultAsync(i => i.Code == code);
+                    if (invite == null || invite.IsRevoked)
+                    {
+                        return BadRequest("Invalid or revoked invite code.");
+                    }
+                    if (invite.ExpiresAt.HasValue && invite.ExpiresAt.Value < DateTime.UtcNow)
+                    {
+                        return BadRequest("Invite code has expired.");
+                    }
+                    if (invite.MaxUses > 0 && invite.UsesCount >= invite.MaxUses)
+                    {
+                        return BadRequest("Invite code has been used up.");
+                    }
+
+                    // Create the user
+                    var user = new User
+                    {
+                        Name = sanitizedName,
+                        Email = sanitizedEmail,
+                        Password = hashedPassword,
+                        IsAdmin = isAdmin,
+                        IsDeactivated = false
+                    };
+
+                    _dbContext.Users.Add(user);
+                    await _dbContext.SaveChangesAsync();
+
+                    // Record invite usage and increment count
+                    var usage = new InviteUsage
+                    {
+                        InviteId = invite.Id,
+                        UserId = user.Id,
+                        UsedAt = DateTime.UtcNow,
+                        SourceIp = HttpContext.Connection.RemoteIpAddress?.ToString()
+                    };
+                    _dbContext.InviteUsages.Add(usage);
+
+                    // increment count
+                    invite.UsesCount += 1;
+                    _dbContext.Invites.Update(invite);
+
+                    await _dbContext.SaveChangesAsync();
+
+                    await tx.CommitAsync();
+
+                    return CreatedAtAction(nameof(Create), new { id = user.Id }, new
+                    {
+                        id = user.Id,
+                        name = user.Name,
+                        email = user.Email,
+                        isAdmin = user.IsAdmin,
+                        isDeactivated = user.IsDeactivated
+                    });
+                }
+                catch (DbUpdateConcurrencyException)
+                {
+                    // concurrency on invite row; retry a few times
+                    await tx.RollbackAsync();
+                    if (attempt == maxAttempts - 1) throw;
+                    // small delay before retry
+                    await Task.Delay(50);
+                    continue;
+                }
+                catch
+                {
+                    await tx.RollbackAsync();
+                    throw;
+                }
+            }
+
+            // If we get here, something unexpected happened
+            return StatusCode(500, "Failed to consume invite, please try again.");
+        }
+
+        // Non-private mode: create the user normally
+        var userNormal = new User
         {
             Name = sanitizedName,
             Email = sanitizedEmail,
@@ -70,17 +165,16 @@ public class UsersController : ControllerBase
             IsDeactivated = false
         };
 
-        _dbContext.Users.Add(user);
+        _dbContext.Users.Add(userNormal);
         await _dbContext.SaveChangesAsync();
 
-        // Return created user (without password)
-        return CreatedAtAction(nameof(Create), new { id = user.Id }, new
+        return CreatedAtAction(nameof(Create), new { id = userNormal.Id }, new
         {
-            id = user.Id,
-            name = user.Name,
-            email = user.Email,
-            isAdmin = user.IsAdmin,
-            isDeactivated = user.IsDeactivated
+            id = userNormal.Id,
+            name = userNormal.Name,
+            email = userNormal.Email,
+            isAdmin = userNormal.IsAdmin,
+            isDeactivated = userNormal.IsDeactivated
         });
     }
 

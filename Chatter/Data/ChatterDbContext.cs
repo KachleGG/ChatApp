@@ -11,6 +11,8 @@ public class ChatterDbContext : DbContext
     public DbSet<Message> Messages { get; set; }
     public DbSet<Group> Groups { get; set; }
     public DbSet<GroupMembership> GroupMemberships { get; set; }
+    public DbSet<Invite> Invites { get; set; }
+    public DbSet<InviteUsage> InviteUsages { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -93,6 +95,31 @@ public class ChatterDbContext : DbContext
                   .WithMany()
                   .HasForeignKey(e => e.UserId)
                   .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        // Configure Invite entity
+        modelBuilder.Entity<Invite>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Code).IsRequired().HasMaxLength(64);
+            entity.HasIndex(e => e.Code).IsUnique();
+            entity.Property(e => e.CreatedAt).IsRequired();
+            entity.Property(e => e.MaxUses).HasDefaultValue(1);
+            entity.Property(e => e.UsesCount).HasDefaultValue(0);
+            entity.Property(e => e.IsRevoked).HasDefaultValue(false);
+            entity.Property(e => e.Note).HasMaxLength(500);
+            entity.Property(e => e.RowVersion).IsRowVersion();
+        });
+
+        modelBuilder.Entity<InviteUsage>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.HasOne(e => e.Invite)
+                  .WithMany()
+                  .HasForeignKey(e => e.InviteId)
+                  .OnDelete(DeleteBehavior.Cascade);
+            entity.Property(e => e.UsedAt).IsRequired();
+            entity.Property(e => e.SourceIp).HasMaxLength(64);
         });
     }
 }

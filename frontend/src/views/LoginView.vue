@@ -36,8 +36,8 @@
         </form>
 
         <p class="auth-footer">
-          <span v-if="!isPrivateMode">Don't have an account? <router-link to="/register">Register here</router-link></span>
-          <span v-else>This server is private — registration is disabled.</span>
+          Don't have an account? <router-link to="/register">Register here</router-link>
+          <span v-if="isPrivateMode" style="margin-left:8px;color:var(--text-purple-70)">This server requires an invite code to register.</span>
         </p>
 
         <div id="errorMessage" class="error-message" :class="{ show: error }">{{ error }}</div>
@@ -49,9 +49,10 @@
 
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRouter, useRoute } from 'vue-router'
 
 const router = useRouter()
+const route = useRoute()
 const email = ref('')
 const password = ref('')
 const error = ref('')
@@ -92,6 +93,9 @@ onMounted(async () => {
   } catch (e) {
     // ignore - if config can't be fetched, allow registration link by default
   }
+  // Show message passed in query (e.g., invalid invite redirect)
+  const m = (route.query.msg as string) || ''
+  if (m) error.value = m
 })
 </script>
 <style scoped>

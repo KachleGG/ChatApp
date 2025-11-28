@@ -6,6 +6,13 @@
         <p class="auth-subtitle">Create Account</p>
         
         <form id="registerForm" @submit.prevent="handleRegister">
+          <div v-if="requireInvite" style="margin-bottom:16px;padding:12px;border:1px solid var(--border-red-30);border-radius:8px;background:var(--bg-chat-sidebar-1)">
+            <div class="form-group" style="margin:0">
+              <label for="inviteCode">Invite Code</label>
+              <input id="inviteCode" v-model="inviteCode" placeholder="Enter invite code" class="text-input" />
+            </div>
+            <div style="margin-top:8px;color:var(--border-red-30);font-size:13px">This server requires an invite code to register. The code will be validated when you create your account.</div>
+          </div>
           <div class="form-group">
             <label for="username">Username</label>
             <input type="text" id="username" placeholder="Choose a username" required v-model="username" autocomplete="username" />
@@ -66,6 +73,8 @@ import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 
 const router = useRouter()
+const requireInvite = ref(false)
+const inviteCode = ref('')
 const username = ref('')
 const email = ref('')
 const password = ref('')
@@ -80,9 +89,9 @@ onMounted(async () => {
     const res = await fetch('/api/config')
     if (res.ok) {
       const cfg = await res.json()
+      // If server is in private mode, require an invite code before showing the registration form
       if (cfg?.privateMode) {
-        // Redirect to login since registration is disabled
-        router.replace({ name: 'Login' })
+        requireInvite.value = true
       }
     }
   } catch (e) {
@@ -98,12 +107,22 @@ async function handleRegister() {
   }
   registerLoading.value = true
   try {
+      // If server requires invite, ensure code is provided (server validates on create)
+      if (requireInvite.value && !inviteCode.value) {
+        error.value = 'Registration requires an invite code.'
+        registerLoading.value = false
+        return
+      }
+
+      const payload: any = { Name: username.value, Email: email.value, Password: password.value }
+      if (inviteCode.value) payload.InviteCode = inviteCode.value
+
     const res = await fetch('/api/users', {
       method: 'POST',
       credentials: 'include',
       headers: { 'Content-Type': 'application/json' },
-      // UsersController expects CreateUserRequest with fields: Name, Email, Password
-      body: JSON.stringify({ Name: username.value, Email: email.value, Password: password.value }),
+      // UsersController accepts optional InviteCode when private mode is enabled
+      body: JSON.stringify(payload),
     })
     if (!res.ok) {
       const txt = await res.text()
@@ -117,6 +136,8 @@ async function handleRegister() {
     registerLoading.value = false
   }
 }
+
+// No client-side invite validation: server validates on create request
 </script>
 <style scoped>
 * {

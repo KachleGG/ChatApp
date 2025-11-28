@@ -5,7 +5,8 @@ namespace Chatter
 {
     public class Program
     {
-        public static void Main(string[] args) {
+        public static void Main(string[] args)
+        {
             var builder = WebApplication.CreateBuilder(args);
 
             // Determine base directory for published app
@@ -15,9 +16,12 @@ namespace Chatter
             var databasePathEnv = Environment.GetEnvironmentVariable("DATABASE_PATH");
 
             string databasePath;
-            if (!string.IsNullOrWhiteSpace(databasePathEnv)) {
+            if (!string.IsNullOrWhiteSpace(databasePathEnv))
+            {
                 databasePath = databasePathEnv!;
-            } else {
+            }
+            else
+            {
                 // Default to a database placed next to the compiled files so publish folder is self-contained
                 databasePath = Path.Combine(baseDir, "./data", "chatter.db");
             }
@@ -55,13 +59,17 @@ namespace Chatter
             var app = builder.Build();
 
             // Ensure database is created and migrated
-            using (var scope = app.Services.CreateScope()) {
+            using (var scope = app.Services.CreateScope())
+            {
                 var dbContext = scope.ServiceProvider.GetRequiredService<ChatterDbContext>();
 
-                try {
+                try
+                {
                     dbContext.Database.Migrate();
                     Console.WriteLine("Database migration completed successfully.");
-                } catch (Exception ex) {
+                }
+                catch (Exception ex)
+                {
                     Console.WriteLine($"Database migration error: {ex.Message}");
                     throw;
                 }
@@ -69,7 +77,8 @@ namespace Chatter
 
             AppConstants.EnsureFolderStructure();
 
-            if (app.Environment.IsDevelopment()) {
+            if (app.Environment.IsDevelopment())
+            {
                 app.MapOpenApi();
             }
 
@@ -83,6 +92,10 @@ namespace Chatter
 
             app.UseDefaultFiles();
             app.UseStaticFiles();
+
+            // SPA fallback: serve index.html for any non-API route so client-side routing works
+            // This is required when serving the built `dist` files from wwwroot.
+            app.MapFallbackToFile("index.html");
 
             app.Run();
         }
