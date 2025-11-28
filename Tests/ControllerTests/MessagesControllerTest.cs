@@ -4,6 +4,8 @@ using Chatter.Models;
 using Chatter.Models.DTOs;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
+using Microsoft.VisualStudio.TestTools.UnitTesting;
 
 
 namespace Tests.ControllerTests;
@@ -19,38 +21,44 @@ public class MessagesControllerTest
         return new ChatterDbContext(options);
     }
 
+    private IConfiguration CreateConfiguration(Dictionary<string,string>? values = null) {
+        var builder = new ConfigurationBuilder();
+        if (values != null) builder.AddInMemoryCollection(values);
+        return builder.Build();
+    }
+
     #region PostMessage - Success Scenarios
 
     [TestMethod]
     public async Task PostMessage_WithValidRequest_ReturnsOk() {
         // Arrange
         using var context = CreateInMemoryDbContext("PostMessage_ValidRequest");
-        var controller = new MessagesController(context);
+        var controller = new MessagesController(context, CreateConfiguration(null));
 
         var user = new User { Id = 1, Name = "John Doe", Email = "john@example.com" };
         context.Users.Add(user);
         await context.SaveChangesAsync();
 
-        var request = new MessageRequest { UserId = 1, Message = "Hello, World!" };
+        var request = new MessageRequest { UserId = 1, Message = "Hello, World!", GroupId = 1 };
 
         // Act
         var result = await controller.PostMessage(request);
 
         // Assert
-        Assert.IsInstanceOfType(result, typeof(OkResult));
+        Assert.IsInstanceOfType(result, typeof(OkObjectResult));
     }
 
     [TestMethod]
     public async Task PostMessage_WithValidRequest_SavesMessageToDatabase() {
         // Arrange
         using var context = CreateInMemoryDbContext("PostMessage_SavesMessage");
-        var controller = new MessagesController(context);
+        var controller = new MessagesController(context, CreateConfiguration(null));
 
         var user = new User { Id = 1, Name = "Jane Smith", Email = "jane@example.com" };
         context.Users.Add(user);
         await context.SaveChangesAsync();
 
-        var request = new MessageRequest { UserId = 1, Message = "Test message content" };
+        var request = new MessageRequest { UserId = 1, Message = "Test message content", GroupId = 1 };
 
         // Act
         await controller.PostMessage(request);
@@ -67,20 +75,20 @@ public class MessagesControllerTest
     public async Task PostMessage_WithLongMessage_SavesSuccessfully() {
         // Arrange
         using var context = CreateInMemoryDbContext("PostMessage_LongMessage");
-        var controller = new MessagesController(context);
+        var controller = new MessagesController(context, CreateConfiguration(null));
 
         var user = new User { Id = 1, Name = "Test User", Email = "test@example.com" };
         context.Users.Add(user);
         await context.SaveChangesAsync();
 
         var longMessage = new string('A', 5000);
-        var request = new MessageRequest { UserId = 1, Message = longMessage };
+        var request = new MessageRequest { UserId = 1, Message = longMessage, GroupId = 1 };
 
         // Act
         var result = await controller.PostMessage(request);
 
         // Assert
-        Assert.IsInstanceOfType(result, typeof(OkResult));
+        Assert.IsInstanceOfType(result, typeof(OkObjectResult));
         var savedMessage = await context.Messages.FirstOrDefaultAsync();
         Assert.IsNotNull(savedMessage);
         Assert.AreEqual(5000, savedMessage.Text.Length);
@@ -90,16 +98,16 @@ public class MessagesControllerTest
     public async Task PostMessage_MultipleMessages_SavesAll() {
         // Arrange
         using var context = CreateInMemoryDbContext("PostMessage_MultipleMessages");
-        var controller = new MessagesController(context);
+        var controller = new MessagesController(context, CreateConfiguration(null));
 
         var user = new User { Id = 1, Name = "Test User", Email = "test@example.com" };
         context.Users.Add(user);
         await context.SaveChangesAsync();
 
         // Act
-        await controller.PostMessage(new MessageRequest { UserId = 1, Message = "Message 1" });
-        await controller.PostMessage(new MessageRequest { UserId = 1, Message = "Message 2" });
-        await controller.PostMessage(new MessageRequest { UserId = 1, Message = "Message 3" });
+        await controller.PostMessage(new MessageRequest { UserId = 1, Message = "Message 1", GroupId = 1 });
+        await controller.PostMessage(new MessageRequest { UserId = 1, Message = "Message 2", GroupId = 1 });
+        await controller.PostMessage(new MessageRequest { UserId = 1, Message = "Message 3", GroupId = 1 });
 
         // Assert
         var messageCount = await context.Messages.CountAsync();
@@ -110,20 +118,20 @@ public class MessagesControllerTest
     public async Task PostMessage_WithSpecialCharacters_SavesCorrectly() {
         // Arrange
         using var context = CreateInMemoryDbContext("PostMessage_SpecialChars");
-        var controller = new MessagesController(context);
+        var controller = new MessagesController(context, CreateConfiguration(null));
 
         var user = new User { Id = 1, Name = "Test User", Email = "test@example.com" };
         context.Users.Add(user);
         await context.SaveChangesAsync();
 
         var messageWithSpecialChars = "Hello! @#$%^&*() <script>alert('xss')</script> 你好 🎉";
-        var request = new MessageRequest { UserId = 1, Message = messageWithSpecialChars };
+        var request = new MessageRequest { UserId = 1, Message = messageWithSpecialChars, GroupId = 1 };
 
         // Act
         var result = await controller.PostMessage(request);
 
         // Assert
-        Assert.IsInstanceOfType(result, typeof(OkResult));
+        Assert.IsInstanceOfType(result, typeof(OkObjectResult));
         var savedMessage = await context.Messages.FirstOrDefaultAsync();
         Assert.IsNotNull(savedMessage);
         Assert.AreEqual(messageWithSpecialChars, savedMessage.Text);
@@ -137,7 +145,7 @@ public class MessagesControllerTest
     public async Task PostMessage_WithNullRequest_ReturnsBadRequest() {
         // Arrange
         using var context = CreateInMemoryDbContext("PostMessage_NullRequest");
-        var controller = new MessagesController(context);
+        var controller = new MessagesController(context, CreateConfiguration(null));
 
         // Act
         var result = await controller.PostMessage(null);
@@ -152,13 +160,13 @@ public class MessagesControllerTest
     public async Task PostMessage_WithEmptyMessage_ReturnsBadRequest() {
         // Arrange
         using var context = CreateInMemoryDbContext("PostMessage_EmptyMessage");
-        var controller = new MessagesController(context);
+        var controller = new MessagesController(context, CreateConfiguration(null));
 
         var user = new User { Id = 1, Name = "Test User", Email = "test@example.com" };
         context.Users.Add(user);
         await context.SaveChangesAsync();
 
-        var request = new MessageRequest { UserId = 1, Message = "" };
+        var request = new MessageRequest { UserId = 1, Message = "", GroupId = 1 };
 
         // Act
         var result = await controller.PostMessage(request);
@@ -173,13 +181,13 @@ public class MessagesControllerTest
     public async Task PostMessage_WithNullMessage_ReturnsBadRequest() {
         // Arrange
         using var context = CreateInMemoryDbContext("PostMessage_NullMessage");
-        var controller = new MessagesController(context);
+        var controller = new MessagesController(context, CreateConfiguration(null));
 
         var user = new User { Id = 1, Name = "Test User", Email = "test@example.com" };
         context.Users.Add(user);
         await context.SaveChangesAsync();
 
-        var request = new MessageRequest { UserId = 1, Message = null };
+        var request = new MessageRequest { UserId = 1, Message = null, GroupId = 1 };
 
         // Act
         var result = await controller.PostMessage(request);
@@ -192,13 +200,13 @@ public class MessagesControllerTest
     public async Task PostMessage_WithWhitespaceMessage_ReturnsBadRequest() {
         // Arrange
         using var context = CreateInMemoryDbContext("PostMessage_WhitespaceMessage");
-        var controller = new MessagesController(context);
+        var controller = new MessagesController(context, CreateConfiguration(null));
 
         var user = new User { Id = 1, Name = "Test User", Email = "test@example.com" };
         context.Users.Add(user);
         await context.SaveChangesAsync();
 
-        var request = new MessageRequest { UserId = 1, Message = "   " };
+        var request = new MessageRequest { UserId = 1, Message = "   ", GroupId = 1 };
 
         // Act
         var result = await controller.PostMessage(request);
@@ -206,16 +214,16 @@ public class MessagesControllerTest
         // Assert
         // Note: Current implementation doesn't trim, so this passes. 
         // If you want to reject whitespace-only messages, update the controller to use string.IsNullOrWhiteSpace
-        Assert.IsInstanceOfType(result, typeof(OkResult));
+        Assert.IsInstanceOfType(result, typeof(OkObjectResult));
     }
 
     [TestMethod]
     public async Task PostMessage_WithZeroUserId_ReturnsBadRequest() {
         // Arrange
         using var context = CreateInMemoryDbContext("PostMessage_ZeroUserId");
-        var controller = new MessagesController(context);
+        var controller = new MessagesController(context, CreateConfiguration(null));
 
-        var request = new MessageRequest { UserId = 0, Message = "Test message" };
+        var request = new MessageRequest { UserId = 0, Message = "Test message", GroupId = 1 };
 
         // Act
         var result = await controller.PostMessage(request);
@@ -230,9 +238,9 @@ public class MessagesControllerTest
     public async Task PostMessage_WithNegativeUserId_ReturnsBadRequest() {
         // Arrange
         using var context = CreateInMemoryDbContext("PostMessage_NegativeUserId");
-        var controller = new MessagesController(context);
+        var controller = new MessagesController(context, CreateConfiguration(null));
 
-        var request = new MessageRequest { UserId = -1, Message = "Test message" };
+        var request = new MessageRequest { UserId = -1, Message = "Test message", GroupId = 1 };
 
         // Act
         var result = await controller.PostMessage(request);
@@ -251,9 +259,9 @@ public class MessagesControllerTest
     public async Task PostMessage_WithNonExistentUser_ReturnsNotFound() {
         // Arrange
         using var context = CreateInMemoryDbContext("PostMessage_NonExistentUser");
-        var controller = new MessagesController(context);
+        var controller = new MessagesController(context, CreateConfiguration(null));
 
-        var request = new MessageRequest { UserId = 999, Message = "Test message" };
+        var request = new MessageRequest { UserId = 999, Message = "Test message", GroupId = 1 };
 
         // Act
         var result = await controller.PostMessage(request);
@@ -268,9 +276,9 @@ public class MessagesControllerTest
     public async Task PostMessage_WithNonExistentUser_DoesNotSaveMessage() {
         // Arrange
         using var context = CreateInMemoryDbContext("PostMessage_NonExistentUser_NoSave");
-        var controller = new MessagesController(context);
+        var controller = new MessagesController(context, CreateConfiguration(null));
 
-        var request = new MessageRequest { UserId = 999, Message = "Test message" };
+        var request = new MessageRequest { UserId = 999, Message = "Test message", GroupId = 1 };
 
         // Act
         await controller.PostMessage(request);
@@ -288,7 +296,7 @@ public class MessagesControllerTest
     public async Task PostMessage_WithDifferentUsers_AssociatesCorrectUser() {
         // Arrange
         using var context = CreateInMemoryDbContext("PostMessage_DifferentUsers");
-        var controller = new MessagesController(context);
+        var controller = new MessagesController(context, CreateConfiguration(null));
 
         var user1 = new User { Id = 1, Name = "User One", Email = "user1@example.com" };
         var user2 = new User { Id = 2, Name = "User Two", Email = "user2@example.com" };
@@ -296,8 +304,8 @@ public class MessagesControllerTest
         await context.SaveChangesAsync();
 
         // Act
-        await controller.PostMessage(new MessageRequest { UserId = 1, Message = "Message from User 1" });
-        await controller.PostMessage(new MessageRequest { UserId = 2, Message = "Message from User 2" });
+        await controller.PostMessage(new MessageRequest { UserId = 1, Message = "Message from User 1", GroupId = 1 });
+        await controller.PostMessage(new MessageRequest { UserId = 2, Message = "Message from User 2", GroupId = 1 });
 
         // Assert
         var messages = await context.Messages.Include(m => m.SentFrom).ToListAsync();
@@ -318,7 +326,7 @@ public class MessagesControllerTest
     public async Task PostMessage_WithDeactivatedUser_StillAllowsPosting() {
         // Arrange
         using var context = CreateInMemoryDbContext("PostMessage_DeactivatedUser");
-        var controller = new MessagesController(context);
+        var controller = new MessagesController(context, CreateConfiguration(null));
 
         var user = new User
         {
@@ -330,7 +338,7 @@ public class MessagesControllerTest
         context.Users.Add(user);
         await context.SaveChangesAsync();
 
-        var request = new MessageRequest { UserId = 1, Message = "Message from deactivated user" };
+        var request = new MessageRequest { UserId = 1, Message = "Message from deactivated user", GroupId = 1 };
 
         // Act
         var result = await controller.PostMessage(request);
@@ -338,7 +346,7 @@ public class MessagesControllerTest
         // Assert
         // Current implementation doesn't check IsDeactivated, so this passes
         // If you want to prevent deactivated users from posting, add that check
-        Assert.IsInstanceOfType(result, typeof(OkResult));
+        Assert.IsInstanceOfType(result, typeof(OkObjectResult));
     }
 
     [TestMethod]
@@ -355,33 +363,33 @@ public class MessagesControllerTest
         {
             // Create new controller instance for each request to simulate concurrent requests
             using var ctx = CreateInMemoryDbContext("PostMessage_Concurrent");
-            var controller = new MessagesController(ctx);
-            return await controller.PostMessage(new MessageRequest { UserId = 1, Message = $"Message {i}" });
+            var controller = new MessagesController(ctx, CreateConfiguration(null));
+            return await controller.PostMessage(new MessageRequest { UserId = 1, Message = $"Message {i}", GroupId = 1 });
         });
 
         var results = await Task.WhenAll(tasks);
 
         // Assert
-        Assert.IsTrue(results.All(r => r is OkResult));
+        Assert.IsTrue(results.All(r => r is OkObjectResult));
     }
 
     [TestMethod]
     public async Task PostMessage_WithSingleCharacterMessage_SavesSuccessfully() {
         // Arrange
         using var context = CreateInMemoryDbContext("PostMessage_SingleChar");
-        var controller = new MessagesController(context);
+        var controller = new MessagesController(context, CreateConfiguration(null));
 
         var user = new User { Id = 1, Name = "Test User", Email = "test@example.com" };
         context.Users.Add(user);
         await context.SaveChangesAsync();
 
-        var request = new MessageRequest { UserId = 1, Message = "A" };
+        var request = new MessageRequest { UserId = 1, Message = "A", GroupId = 1 };
 
         // Act
         var result = await controller.PostMessage(request);
 
         // Assert
-        Assert.IsInstanceOfType(result, typeof(OkResult));
+        Assert.IsInstanceOfType(result, typeof(OkObjectResult));
         var savedMessage = await context.Messages.FirstOrDefaultAsync();
         Assert.IsNotNull(savedMessage);
         Assert.AreEqual("A", savedMessage.Text);
@@ -391,20 +399,20 @@ public class MessagesControllerTest
     public async Task PostMessage_WithNewlines_PreservesFormatting() {
         // Arrange
         using var context = CreateInMemoryDbContext("PostMessage_Newlines");
-        var controller = new MessagesController(context);
+        var controller = new MessagesController(context, CreateConfiguration(null));
 
         var user = new User { Id = 1, Name = "Test User", Email = "test@example.com" };
         context.Users.Add(user);
         await context.SaveChangesAsync();
 
         var messageWithNewlines = "Line 1\nLine 2\r\nLine 3";
-        var request = new MessageRequest { UserId = 1, Message = messageWithNewlines };
+        var request = new MessageRequest { UserId = 1, Message = messageWithNewlines, GroupId = 1 };
 
         // Act
         var result = await controller.PostMessage(request);
 
         // Assert
-        Assert.IsInstanceOfType(result, typeof(OkResult));
+        Assert.IsInstanceOfType(result, typeof(OkObjectResult));
         var savedMessage = await context.Messages.FirstOrDefaultAsync();
         Assert.IsNotNull(savedMessage);
         Assert.AreEqual(messageWithNewlines, savedMessage.Text);
@@ -418,14 +426,14 @@ public class MessagesControllerTest
     public async Task PostMessage_DatabaseSaveChanges_IsCalled() {
         // Arrange
         using var context = CreateInMemoryDbContext("PostMessage_SaveChangesCalled");
-        var controller = new MessagesController(context);
+        var controller = new MessagesController(context, CreateConfiguration(null));
 
         var user = new User { Id = 1, Name = "Test User", Email = "test@example.com" };
         context.Users.Add(user);
         await context.SaveChangesAsync();
 
         var initialMessageCount = await context.Messages.CountAsync();
-        var request = new MessageRequest { UserId = 1, Message = "Test message" };
+        var request = new MessageRequest { UserId = 1, Message = "Test message", GroupId = 1 };
 
         // Act
         await controller.PostMessage(request);
@@ -439,13 +447,13 @@ public class MessagesControllerTest
     public async Task PostMessage_MessageId_IsAutoGenerated() {
         // Arrange
         using var context = CreateInMemoryDbContext("PostMessage_AutoGeneratedId");
-        var controller = new MessagesController(context);
+        var controller = new MessagesController(context, CreateConfiguration(null));
 
         var user = new User { Id = 1, Name = "Test User", Email = "test@example.com" };
         context.Users.Add(user);
         await context.SaveChangesAsync();
 
-        var request = new MessageRequest { UserId = 1, Message = "Test message" };
+        var request = new MessageRequest { UserId = 1, Message = "Test message", GroupId = 1 };
 
         // Act
         await controller.PostMessage(request);

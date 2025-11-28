@@ -2,6 +2,7 @@
 using Chatter.Models;
 using Chatter.Models.DTOs;
 using Microsoft.AspNetCore.Mvc;
+using System.Security.Cryptography;
 using Microsoft.EntityFrameworkCore;
 
 namespace Chatter.Controllers;
@@ -36,25 +37,34 @@ public class GroupsController : ControllerBase
 
         var prohibitGeneral = _configuration.GetValue<bool>("ServerSettings:ProhibitGeneral");
 
-        var groups = await _dbContext.Groups
-            .Include(g => g.Owner)
-            .Where(g => !g.IsDeactivated)
-            .Select(g => new
-            {
-                g.Id,
-                g.Name,
-                g.OwnerId,
-                OwnerName = g.Owner.Name,
-                g.CreatedAt,
-                g.IsDeactivated
-            })
+        // Find group ids where the user is a member
+        var memberGroupIds = await _dbContext.GroupMemberships
+            .Where(m => m.UserId == userId.Value)
+            .Select(m => m.GroupId)
             .ToListAsync();
 
-        // Filter out General group if prohibited
-        if (prohibitGeneral)
+        // Load groups that the user should see:
+        // - General (id==1) only when it's not prohibited
+        // - For non-General groups, include if the user owns them or is a member
+        var groupEntities = await _dbContext.Groups
+            .Include(g => g.Owner)
+            .Where(g => !g.IsDeactivated && (
+                (g.Id == 1 && !prohibitGeneral) ||
+                (g.Id != 1 && (g.OwnerId == userId.Value || memberGroupIds.Contains(g.Id)))
+            ))
+            .ToListAsync();
+
+        var groups = groupEntities.Select(g => new
         {
-            groups = groups.Where(g => g.Id != 1).ToList();
-        }
+            g.Id,
+            g.Name,
+            g.OwnerId,
+            OwnerName = g.Owner.Name,
+            g.CreatedAt,
+            g.IsDeactivated,
+            // Only reveal code to group owner or admin
+            Code = (g.OwnerId == userId.Value || user.IsAdmin) ? g.Code : null
+        }).ToList();
 
         return Ok(groups);
     }
@@ -74,22 +84,49 @@ public class GroupsController : ControllerBase
             return Unauthorized(new { message = "User not found or deactivated" });
         }
 
-        var group = await _dbContext.Groups
+        var groupEntity = await _dbContext.Groups
             .Include(g => g.Owner)
             .Where(g => g.Id == id)
-            .Select(g => new
-            {
-                g.Id,
-                g.Name,
-                g.OwnerId,
-                OwnerName = g.Owner.Name,
-                g.CreatedAt,
-                g.IsDeactivated
-            })
             .FirstOrDefaultAsync();
 
-        if (group == null)
+        if (groupEntity == null || groupEntity.IsDeactivated)
             return NotFound(new { message = "Group not found" });
+
+        var prohibitGeneral = _configuration.GetValue<bool>("ServerSettings:ProhibitGeneral");
+
+        // Check access. General group (id==1) is only visible when not prohibited.
+        var isOwner = groupEntity.OwnerId == userId.Value;
+        var isAdmin = user.IsAdmin;
+        var isMember = await _dbContext.GroupMemberships.AnyAsync(m => m.GroupId == id && m.UserId == userId.Value);
+
+        if (groupEntity.Id == 1)
+        {
+            if (prohibitGeneral)
+            {
+                // Hide General entirely when prohibited
+                return NotFound(new { message = "Group not found" });
+            }
+            // Otherwise General is visible to any authenticated user
+        }
+        else
+        {
+            if (!(isOwner || isAdmin || isMember))
+            {
+                // Hide group from users who are not members/owners/admins
+                return NotFound(new { message = "Group not found" });
+            }
+        }
+
+        var group = new
+        {
+            groupEntity.Id,
+            groupEntity.Name,
+            groupEntity.OwnerId,
+            OwnerName = groupEntity.Owner.Name,
+            groupEntity.CreatedAt,
+            groupEntity.IsDeactivated,
+            Code = (isOwner || isAdmin) ? groupEntity.Code : null
+        };
 
         return Ok(group);
     }
@@ -137,6 +174,17 @@ public class GroupsController : ControllerBase
         _dbContext.Groups.Add(newGroup);
         await _dbContext.SaveChangesAsync();
 
+        // Add owner as a member of the group
+        try
+        {
+            _dbContext.GroupMemberships.Add(new GroupMembership { GroupId = newGroup.Id, UserId = userId.Value, JoinedAt = DateTime.UtcNow });
+            await _dbContext.SaveChangesAsync();
+        }
+        catch
+        {
+            // membership add is best-effort; ignore failures here
+        }
+
         return CreatedAtAction(nameof(GetGroup), new { id = newGroup.Id }, new
         {
             newGroup.Id,
@@ -146,6 +194,133 @@ public class GroupsController : ControllerBase
             newGroup.CreatedAt,
             newGroup.IsDeactivated
         });
+    }
+
+    // POST api/groups/{id}/code - generate a join code for the group (owner or admin)
+    [HttpPost("{id}/code")]
+    public async Task<IActionResult> GenerateCode(int id)
+    {
+        var userId = HttpContext.Session.GetInt32("UserId");
+        if (userId == null)
+            return Unauthorized(new { message = "Not authenticated" });
+
+        var user = await _dbContext.Users.FindAsync(userId.Value);
+        if (user == null || user.IsDeactivated)
+        {
+            HttpContext.Session.Clear();
+            return Unauthorized(new { message = "User not found or deactivated" });
+        }
+
+        var group = await _dbContext.Groups.FindAsync(id);
+        if (group == null)
+            return NotFound(new { message = "Group not found" });
+
+        if (id == 1)
+            return BadRequest(new { message = "Cannot generate code for General group" });
+
+        if (group.OwnerId != userId.Value && !user.IsAdmin)
+            return Forbid();
+
+        // Generate unique code (retry few times on collision)
+        string code = string.Empty;
+        for (int attempt = 0; attempt < 6; attempt++)
+        {
+            code = GenerateJoinCode(8);
+            var exists = await _dbContext.Groups.AnyAsync(g => g.Code == code);
+            if (!exists) break;
+        }
+
+        group.Code = code;
+        group.CodeGeneratedAt = DateTime.UtcNow;
+        await _dbContext.SaveChangesAsync();
+
+        return Ok(new { code = group.Code, generatedAt = group.CodeGeneratedAt });
+    }
+
+    // DELETE api/groups/{id}/code - revoke join code (owner or admin)
+    [HttpDelete("{id}/code")]
+    public async Task<IActionResult> RevokeCode(int id)
+    {
+        var userId = HttpContext.Session.GetInt32("UserId");
+        if (userId == null)
+            return Unauthorized(new { message = "Not authenticated" });
+
+        var user = await _dbContext.Users.FindAsync(userId.Value);
+        if (user == null || user.IsDeactivated)
+        {
+            HttpContext.Session.Clear();
+            return Unauthorized(new { message = "User not found or deactivated" });
+        }
+
+        var group = await _dbContext.Groups.FindAsync(id);
+        if (group == null)
+            return NotFound(new { message = "Group not found" });
+
+        if (id == 1)
+            return BadRequest(new { message = "Cannot revoke code for General group" });
+
+        if (group.OwnerId != userId.Value && !user.IsAdmin)
+            return Forbid();
+
+        group.Code = null;
+        group.CodeGeneratedAt = null;
+        await _dbContext.SaveChangesAsync();
+
+        return Ok(new { message = "Code revoked" });
+    }
+
+    // POST api/groups/join - join a group by code
+    [HttpPost("join")]
+    public async Task<IActionResult> JoinByCode([FromBody] Models.DTOs.JoinGroupRequest? request)
+    {
+        var userId = HttpContext.Session.GetInt32("UserId");
+        if (userId == null)
+            return Unauthorized(new { message = "Not authenticated" });
+
+        var user = await _dbContext.Users.FindAsync(userId.Value);
+        if (user == null || user.IsDeactivated)
+        {
+            HttpContext.Session.Clear();
+            return Unauthorized(new { message = "User not found or deactivated" });
+        }
+
+        if (request == null || string.IsNullOrWhiteSpace(request.Code))
+            return BadRequest(new { message = "Code is required" });
+
+        var code = request.Code.Trim().ToUpperInvariant();
+        var group = await _dbContext.Groups.SingleOrDefaultAsync(g => g.Code == code && !g.IsDeactivated);
+        if (group == null)
+            return NotFound(new { message = "Group with provided code not found" });
+
+        if (group.Id == 1)
+            return BadRequest(new { message = "Cannot join General group by code" });
+
+        // Check existing membership
+        var existing = await _dbContext.GroupMemberships.SingleOrDefaultAsync(gm => gm.GroupId == group.Id && gm.UserId == userId.Value);
+        if (existing != null)
+        {
+            return Ok(new { message = "Already a member", id = group.Id, name = group.Name });
+        }
+
+        var membership = new GroupMembership { GroupId = group.Id, UserId = userId.Value, JoinedAt = DateTime.UtcNow };
+        _dbContext.GroupMemberships.Add(membership);
+        await _dbContext.SaveChangesAsync();
+
+        return Ok(new { id = group.Id, name = group.Name, ownerId = group.OwnerId });
+    }
+
+    private static string GenerateJoinCode(int length = 8)
+    {
+        const string chars = "ABCDEFGHJKMNPQRSTUVWXYZ23456789"; // avoid ambiguous characters
+        using var rng = RandomNumberGenerator.Create();
+        var bytes = new byte[length];
+        rng.GetBytes(bytes);
+        var result = new char[length];
+        for (int i = 0; i < length; i++)
+        {
+            result[i] = chars[bytes[i] % chars.Length];
+        }
+        return new string(result);
     }
 
     // PUT api/groups/{id} - Update group (name or deactivate)
@@ -234,6 +409,56 @@ public class GroupsController : ControllerBase
         await _dbContext.SaveChangesAsync();
 
         return Ok(new { message = "Group deactivated successfully" });
+    }
+
+    // POST api/groups/{id}/leave - leave a group (member request)
+    [HttpPost("{id}/leave")]
+    public async Task<IActionResult> LeaveGroup(int id)
+    {
+        var userId = HttpContext.Session.GetInt32("UserId");
+        if (userId == null)
+            return Unauthorized(new { message = "Not authenticated" });
+
+        var user = await _dbContext.Users.FindAsync(userId.Value);
+        if (user == null || user.IsDeactivated)
+        {
+            HttpContext.Session.Clear();
+            return Unauthorized(new { message = "User not found or deactivated" });
+        }
+
+        var group = await _dbContext.Groups.FindAsync(id);
+        if (group == null || group.IsDeactivated)
+            return NotFound(new { message = "Group not found" });
+
+        if (id == 1)
+            return BadRequest(new { message = "Cannot leave General group" });
+
+        var membership = await _dbContext.GroupMemberships.SingleOrDefaultAsync(gm => gm.GroupId == id && gm.UserId == userId.Value);
+        if (membership == null)
+            return BadRequest(new { message = "You are not a member of this group" });
+
+        // If the leaving user is the owner, attempt to transfer ownership to the next joined member
+        if (group.OwnerId == userId.Value)
+        {
+            var otherMembers = await _dbContext.GroupMemberships
+                .Where(gm => gm.GroupId == id && gm.UserId != userId.Value)
+                .OrderBy(gm => gm.JoinedAt)
+                .ToListAsync();
+
+            if (otherMembers.Count == 0)
+            {
+                return BadRequest(new { message = "Owner cannot leave the group. Transfer ownership or deactivate the group first." });
+            }
+
+            var newOwnerId = otherMembers.First().UserId;
+            group.OwnerId = newOwnerId;
+            // Keep the new owner as a member; we'll remove the current owner's membership below.
+        }
+
+        _dbContext.GroupMemberships.Remove(membership);
+        await _dbContext.SaveChangesAsync();
+
+        return Ok(new { message = "Left group", id = group.Id, ownerId = group.OwnerId });
     }
 }
 

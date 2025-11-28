@@ -23,6 +23,12 @@ namespace Chatter.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("INTEGER");
 
+                    b.Property<string>("Code")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime?>("CodeGeneratedAt")
+                        .HasColumnType("TEXT");
+
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("TEXT");
 
@@ -41,6 +47,10 @@ namespace Chatter.Migrations
 
                     b.HasKey("Id");
 
+                    b.HasIndex("Code")
+                        .IsUnique()
+                        .HasFilter("Code IS NOT NULL");
+
                     b.HasIndex("OwnerId");
 
                     b.ToTable("Groups");
@@ -54,6 +64,31 @@ namespace Chatter.Migrations
                             Name = "General",
                             OwnerId = 1
                         });
+                });
+
+            modelBuilder.Entity("Chatter.Models.GroupMembership", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("GroupId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTime>("JoinedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("UserId")
+                        .HasColumnType("INTEGER");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UserId");
+
+                    b.HasIndex("GroupId", "UserId")
+                        .IsUnique();
+
+                    b.ToTable("GroupMemberships");
                 });
 
             modelBuilder.Entity("Chatter.Models.Message", b =>
@@ -133,6 +168,25 @@ namespace Chatter.Migrations
                     b.Navigation("Owner");
                 });
 
+            modelBuilder.Entity("Chatter.Models.GroupMembership", b =>
+                {
+                    b.HasOne("Chatter.Models.Group", "Group")
+                        .WithMany("Memberships")
+                        .HasForeignKey("GroupId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("Chatter.Models.User", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Group");
+
+                    b.Navigation("User");
+                });
+
             modelBuilder.Entity("Chatter.Models.Message", b =>
                 {
                     b.HasOne("Chatter.Models.Group", "Group")
@@ -150,6 +204,11 @@ namespace Chatter.Migrations
                     b.Navigation("Group");
 
                     b.Navigation("SentFrom");
+                });
+
+            modelBuilder.Entity("Chatter.Models.Group", b =>
+                {
+                    b.Navigation("Memberships");
                 });
 #pragma warning restore 612, 618
         }

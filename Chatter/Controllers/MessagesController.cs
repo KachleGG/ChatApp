@@ -3,6 +3,7 @@ using Chatter.Helpers;
 using Chatter.Models.DTOs;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.AspNetCore.Http;
 
 namespace Chatter.Controllers;
 
@@ -32,14 +33,19 @@ public class MessagesController : ControllerBase
             return BadRequest("Message must be provided.");
         }
 
-        // Check if posting to General group (Id = 1)
-        if (request.GroupId == 1)
+        // Determine the sender from session (ignore any supplied UserId to prevent spoofing)
+        var sessionUserId = HttpContext.Session.GetInt32("UserId");
+        if (sessionUserId == null)
         {
-            var prohibitGeneral = _configuration.GetValue<bool>("ServerSettings:ProhibitGeneral");
-            if (prohibitGeneral)
-            {
-                return Forbid("The general chat is currently prohibited.");
-            }
+            return Unauthorized("Not authenticated.");
+        }
+
+        // Read global setting once: whether General is prohibited
+        var prohibitGeneral = _configuration.GetValue<bool>("ServerSettings:ProhibitGeneral");
+        // If trying to post to General (Id = 1) while it's prohibited, block it
+        if (request.GroupId == 1 && prohibitGeneral)
+        {
+            return Forbid("The general chat is currently prohibited.");
         }
 
         // Verify group exists and is not deactivated
@@ -54,15 +60,28 @@ public class MessagesController : ControllerBase
             return BadRequest("This group is deactivated.");
         }
 
-        if (!Validator.IsValidUserId(request.UserId))
-        {
-            return BadRequest("Valid UserId must be provided.");
-        }
-
-        var user = await _dbContext.Users.FindAsync(request.UserId);
+        // Load the user from the session id and ensure the account exists
+        var user = await _dbContext.Users.FindAsync(sessionUserId.Value);
         if (user == null)
         {
-            return NotFound("User not found.");
+            // Clear session if user is gone
+            HttpContext.Session.Clear();
+            return Unauthorized("User not found or session invalid.");
+        }
+
+        // Ensure the sender is allowed to post to the target group.
+        // Allow if the user is admin, the owner of the group, or is a member of the group.
+        var isOwner = group.OwnerId == user.Id;
+        var isAdmin = user.IsAdmin;
+        var isMember = await _dbContext.GroupMemberships.AnyAsync(gm => gm.GroupId == group.Id && gm.UserId == user.Id);
+
+        if (!isAdmin && !isOwner && !isMember)
+        {
+            // If this is the General group and General is not prohibited, allow all authenticated users
+            if (!(group.Id == 1 && !prohibitGeneral))
+            {
+                return Forbid("You are not a member of this group.");
+            }
         }
 
         var message = new Models.Message

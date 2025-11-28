@@ -10,24 +10,18 @@
     - [ ] Create an enpoint
     - [ ] Create url creator
     - [ ] Make it so the url expires after some time or after the person registers
-- [ ] Add groups
+- [x] Add groups
   - [x] Add database table
   - [x] Add appsettings.json entry for permitting groups
   - [x] Add max groups per user setting
-  - [ ] Make the group codes creation
-  - [ ] Make groups only available to users with the codes to those groups
+  - [x] Make the group codes creation
+  - [x] Make groups only available to users with the codes to those groups
+  - [x] Add option for leaving a group
 - [ ] Add chat restrictions/filtering(swear words.....)
 - [ ] Add optional database backup
 
 ## Frontend
 
-- [x] Add icons
 - [ ] Make better icons
-- [x] Add support for groups
-  - [x] Add group creation
-  - [x] Add popups for errors.
-  - [x] Add group editing
-  - [x] Add group deletion/deactivation
-  - [x] Add group login codes frontend handeling.
 
 ---

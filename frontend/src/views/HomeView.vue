@@ -105,6 +105,14 @@
                       <div class="gm-info">
                         <div class="gm-name">{{ g.name }}</div>
                         <div class="gm-owner">Owner: {{ g.ownerName || 'You' }}</div>
+                        <div v-if="g.code" class="gm-code" style="margin-top:6px;display:flex;gap:8px;align-items:center">
+                          <code style="background:var(--bg-chat-dark-1);padding:6px;border-radius:6px;color:var(--text-white);font-weight:700">{{ g.code }}</code>
+                          <button class="change-password-button" @click="copyCodeToClipboard(g.code, g.id)">{{ copiedCodeId === g.id ? 'Copied!' : 'Copy' }}</button>
+                          <button class="delete-button" @click="revokeCode(g.id)">Revoke</button>
+                        </div>
+                        <div v-else style="margin-top:6px;">
+                          <button class="save-button" @click="generateCode(g.id)">Generate code</button>
+                        </div>
                       </div>
                     </div>
                     <div class="gm-actions">
@@ -117,6 +125,27 @@
             </div>
 
             <!-- Inline edit appears inside the list rows now -->
+            <div style="margin-top:18px"> 
+              <h4>Member Of</h4>
+              <div v-if="mgLoading" class="loading">Loading groups...</div>
+              <div v-else>
+                <div v-if="memberGroups.length === 0" class="muted">You are not a member of any groups.</div>
+                <ul class="group-list-manager">
+                  <li v-for="g in memberGroups" :key="g.id">
+                    <div class="gm-left">
+                      <div class="gm-avatar">{{ g.name.charAt(0) }}</div>
+                      <div class="gm-info">
+                        <div class="gm-name">{{ g.name }}</div>
+                        <div class="gm-owner">Owner: {{ g.ownerName || 'Unknown' }}</div>
+                      </div>
+                    </div>
+                    <div class="gm-actions">
+                      <button class="delete-button" @click="leaveGroup(g.id)" :disabled="mgLeavingId === g.id">{{ mgLeavingId === g.id ? 'Leaving...' : 'Leave' }}</button>
+                    </div>
+                  </li>
+                </ul>
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -232,11 +261,14 @@ function openJoinModal() {
 // --- Group Manager (opened from sidebar three-dots) ---
 const showGroupManager = ref(false)
 const mgLoading = ref(false)
-const userGroups = ref<Array<{ id: number; name: string; ownerId: number; ownerName?: string; isDeactivated?: boolean }>>([])
+const userGroups = ref<Array<{ id: number; name: string; ownerId: number; ownerName?: string; isDeactivated?: boolean; code?: string | null; codeGeneratedAt?: string | null }>>([])
+const memberGroups = ref<Array<{ id: number; name: string; ownerId: number; ownerName?: string; isDeactivated?: boolean; code?: string | null }>>([])
 const mgNewName = ref('')
 const mgEditId = ref<number | null>(null)
 const mgEditName = ref('')
 const mgSaving = ref(false)
+const copiedCodeId = ref<number | null>(null)
+const mgLeavingId = ref<number | null>(null)
 
 function openGroupManager() {
   showGroupManager.value = true
@@ -260,12 +292,36 @@ async function loadUserGroups() {
       return
     }
     const data = await res.json()
+    // Owner groups
     userGroups.value = data.filter((g: any) => g.ownerId === currentUser.value!.id && !g.isDeactivated)
+    // Member groups (exclude owned groups) - groups where the user is a member but not the owner
+    memberGroups.value = data.filter((g: any) => g.ownerId !== currentUser.value!.id && !g.isDeactivated)
   } catch (e) {
     console.warn('Failed to load user groups', e)
     userGroups.value = []
   } finally {
     mgLoading.value = false
+  }
+}
+
+async function leaveGroup(groupId: number) {
+  if (!confirm('Leave this group? You will lose access to its messages.')) return
+  mgLeavingId.value = groupId
+  try {
+    const res = await fetch(`/api/groups/${groupId}/leave`, { method: 'POST', credentials: 'include' })
+    if (!res.ok) {
+      const j = await res.json().catch(() => null)
+      alert(j?.message || `Failed to leave group: ${res.status}`)
+      return
+    }
+    // Refresh lists
+    await loadUserGroups()
+    await loadGroups()
+  } catch (e) {
+    console.warn('Leave group failed', e)
+    alert('Network error while leaving group')
+  } finally {
+    mgLeavingId.value = null
   }
 }
 
@@ -300,6 +356,77 @@ async function createGroupMG() {
 function startEditGroup(g: { id: number; name: string }) {
   mgEditId.value = g.id
   mgEditName.value = g.name
+}
+
+async function generateCode(groupId: number) {
+  try {
+    const res = await fetch(`/api/groups/${groupId}/code`, { method: 'POST', credentials: 'include' })
+    if (!res.ok) {
+      const j = await res.json().catch(() => null)
+      alert(j?.message || `Failed to generate code: ${res.status}`)
+      return
+    }
+    const data = await res.json().catch(() => null)
+    // update local copy
+    const g = userGroups.value.find(x => x.id === groupId)
+    if (g) {
+      g.code = data?.code || null
+      g.codeGeneratedAt = data?.generatedAt || null
+    }
+    await loadGroups()
+  } catch (e) {
+    console.warn('Generate code failed', e)
+    alert('Network error while generating code')
+  }
+}
+
+async function revokeCode(groupId: number) {
+  if (!confirm('Revoke join code? Users will no longer be able to join using the current code.')) return
+  try {
+    const res = await fetch(`/api/groups/${groupId}/code`, { method: 'DELETE', credentials: 'include' })
+    if (!res.ok) {
+      const j = await res.json().catch(() => null)
+      alert(j?.message || `Failed to revoke code: ${res.status}`)
+      return
+    }
+    const g = userGroups.value.find(x => x.id === groupId)
+    if (g) { g.code = null; g.codeGeneratedAt = null }
+    await loadGroups()
+  } catch (e) {
+    console.warn('Revoke code failed', e)
+    alert('Network error while revoking code')
+  }
+}
+
+function copyCodeToClipboard(code?: string | null, groupId?: number) {
+  if (!code) return
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(code).then(() => {
+      copiedCodeId.value = groupId ?? null
+      setTimeout(() => { copiedCodeId.value = null }, 1500)
+    }).catch(() => {
+      // fallback handled below
+      fallbackCopy(code, groupId)
+    })
+  } else {
+    // fallback
+    fallbackCopy(code, groupId)
+  }
+}
+
+function fallbackCopy(code: string, groupId?: number) {
+  const el = document.createElement('textarea')
+  el.value = code
+  document.body.appendChild(el)
+  el.select()
+  try {
+    document.execCommand('copy')
+    copiedCodeId.value = groupId ?? null
+    setTimeout(() => { copiedCodeId.value = null }, 1500)
+  } catch (e) {
+    console.warn('Fallback copy failed', e)
+  }
+  document.body.removeChild(el)
 }
 
 async function updateGroupMG() {
@@ -456,6 +583,20 @@ async function fetchMessages() {
   }
 }
 
+function canSendToGroup(groupId: number) {
+  // No selection
+  if (!groupId || groupId === 0) return false
+  // General channel allowed only when not prohibited
+  if (groupId === 1) return !prohibitGeneral.value
+  // Admins may post anywhere (UX-level assumption)
+  if (currentUser.value?.isAdmin) return true
+  // Owner of group
+  if (userGroups.value.some(g => g.id === groupId)) return true
+  // Member of group
+  if (memberGroups.value.some(g => g.id === groupId)) return true
+  return false
+}
+
 onMounted(async () => {
   const user = await getCurrentUser()
   if (!user) {
@@ -553,6 +694,12 @@ async function sendMessage() {
 
   if (!currentUser.value) {
     router.push({ name: 'Login' })
+    return
+  }
+
+  // Friendly client-side check: ensure user is composing into a valid group
+  if (!canSendToGroup(selectedGroupId.value)) {
+    error.value = "You are not composing into a group. Select, create, or join a group first.";
     return
   }
 
