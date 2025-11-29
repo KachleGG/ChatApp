@@ -3,9 +3,8 @@ using Chatter.Models;
 using Chatter.Models.DTOs;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using System.Security.Cryptography;
-using Microsoft.Extensions.Configuration;
 using System.Collections.Concurrent;
+using System.Security.Cryptography;
 
 namespace Chatter.Controllers;
 
@@ -53,7 +52,8 @@ public class InvitesController : ControllerBase
     public async Task<IActionResult> CreateInvite([FromBody] CreateInviteRequest? request)
     {
         var userId = HttpContext.Session.GetInt32("UserId");
-        if (userId == null) return Unauthorized(new { message = "Not authenticated" });
+        if (userId == null)
+            return Unauthorized(new { message = "Not authenticated" });
 
         var user = await _dbContext.Users.FindAsync(userId.Value);
         if (user == null || user.IsDeactivated) { HttpContext.Session.Clear(); return Unauthorized(new { message = "User not found or deactivated" }); }
@@ -66,7 +66,8 @@ public class InvitesController : ControllerBase
         if (!privateMode)
             return BadRequest(new { message = "Server is not in private mode; invites are disabled." });
 
-        if (request == null) return BadRequest(new { message = "Request body required" });
+        if (request == null)
+            return BadRequest(new { message = "Request body required" });
 
         var maxUses = Math.Max(0, request.MaxUses);
         DateTime? expires = null;
@@ -80,7 +81,8 @@ public class InvitesController : ControllerBase
         {
             code = GenerateInviteCode(10);
             var exists = await _dbContext.Invites.AnyAsync(i => i.Code == code);
-            if (!exists) break;
+            if (!exists)
+                break;
         }
 
         var invite = new Invite
@@ -106,11 +108,13 @@ public class InvitesController : ControllerBase
     public async Task<IActionResult> ListInvites()
     {
         var userId = HttpContext.Session.GetInt32("UserId");
-        if (userId == null) return Unauthorized(new { message = "Not authenticated" });
+        if (userId == null)
+            return Unauthorized(new { message = "Not authenticated" });
 
         var user = await _dbContext.Users.FindAsync(userId.Value);
         if (user == null || user.IsDeactivated) { HttpContext.Session.Clear(); return Unauthorized(new { message = "User not found or deactivated" }); }
-        if (!user.IsAdmin) return Forbid();
+        if (!user.IsAdmin)
+            return Forbid();
 
         var invites = await _dbContext.Invites
             .OrderByDescending(i => i.CreatedAt)
@@ -131,9 +135,11 @@ public class InvitesController : ControllerBase
             return StatusCode(429, new { message = "Too many invite validation attempts, try again later." });
         }
 
-        if (string.IsNullOrWhiteSpace(code)) return BadRequest(new { message = "Code required" });
-        var invite = await _dbContext.Invites.SingleOrDefaultAsync(i => i.Code == code.ToUpperInvariant());
-        if (invite == null) return NotFound(new { message = "Invite not found" });
+        if (string.IsNullOrWhiteSpace(code))
+            return BadRequest(new { message = "Code required" });
+        var invite = await _dbContext.Invites.FirstOrDefaultAsync(i => i.Code == code.ToUpperInvariant());
+        if (invite == null)
+            return NotFound(new { message = "Invite not found" });
 
         return Ok(new { invite.Id, invite.Code, invite.MaxUses, invite.UsesCount, invite.ExpiresAt, invite.IsRevoked, invite.CreatedAt, invite.Note });
     }
@@ -143,14 +149,17 @@ public class InvitesController : ControllerBase
     public async Task<IActionResult> RevokeInvite(string code)
     {
         var userId = HttpContext.Session.GetInt32("UserId");
-        if (userId == null) return Unauthorized(new { message = "Not authenticated" });
+        if (userId == null)
+            return Unauthorized(new { message = "Not authenticated" });
 
         var user = await _dbContext.Users.FindAsync(userId.Value);
         if (user == null || user.IsDeactivated) { HttpContext.Session.Clear(); return Unauthorized(new { message = "User not found or deactivated" }); }
-        if (!user.IsAdmin) return Forbid();
+        if (!user.IsAdmin)
+            return Forbid();
 
-        var invite = await _dbContext.Invites.SingleOrDefaultAsync(i => i.Code == code.ToUpperInvariant());
-        if (invite == null) return NotFound(new { message = "Invite not found" });
+        var invite = await _dbContext.Invites.FirstOrDefaultAsync(i => i.Code == code.ToUpperInvariant());
+        if (invite == null)
+            return NotFound(new { message = "Invite not found" });
 
         invite.IsRevoked = true;
         _dbContext.Invites.Update(invite);
@@ -166,7 +175,8 @@ public class InvitesController : ControllerBase
         var bytes = new byte[length];
         rng.GetBytes(bytes);
         var result = new char[length];
-        for (int i = 0; i < length; i++) result[i] = chars[bytes[i] % chars.Length];
+        for (int i = 0; i < length; i++)
+            result[i] = chars[bytes[i] % chars.Length];
         return new string(result);
     }
 }

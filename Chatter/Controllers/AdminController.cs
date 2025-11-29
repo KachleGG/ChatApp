@@ -47,7 +47,13 @@ public class AdminController : ControllerBase
         var httpUrl = _configuration.GetValue<string>("Kestrel:Endpoints:Http:Url");
         var httpsUrl = _configuration.GetValue<string>("Kestrel:Endpoints:Https:Url");
 
-        return Ok(new { privateMode, prohibitGroups, prohibitGeneral, httpUrl, httpsUrl });
+        dynamic resp = new System.Dynamic.ExpandoObject();
+        resp.privateMode = privateMode;
+        resp.prohibitGroups = prohibitGroups;
+        resp.prohibitGeneral = prohibitGeneral;
+        resp.httpUrl = httpUrl;
+        resp.httpsUrl = httpsUrl;
+        return Ok(resp);
     }
 
     // PUT api/admin/config
@@ -127,5 +133,116 @@ public class AdminController : ControllerBase
         {
             return StatusCode(500, new { message = "Failed to update config", error = ex.Message });
         }
+    }
+
+    // POST api/admin/users/{id}/promote - promote a user to admin (admin only)
+    [HttpPost("users/{id}/promote")]
+    public async Task<IActionResult> PromoteUser(int id)
+    {
+        var userId = HttpContext.Session.GetInt32("UserId");
+        if (userId == null)
+            return Forbid();
+
+        var actingUser = await _dbContext.Users.FindAsync(userId.Value);
+        if (actingUser == null || actingUser.IsDeactivated)
+        {
+            HttpContext.Session.Clear();
+            return Forbid();
+        }
+
+        if (!actingUser.IsAdmin)
+            return Forbid();
+
+        var user = await _dbContext.Users.FindAsync(id);
+        if (user == null || user.IsDeactivated)
+            return NotFound(new { message = "User not found" });
+
+        if (user.IsAdmin)
+            return Conflict(new { message = "User is already an admin" });
+
+        user.IsAdmin = true;
+        _dbContext.Users.Update(user);
+        await _dbContext.SaveChangesAsync();
+
+        dynamic resp = new System.Dynamic.ExpandoObject();
+        resp.id = user.Id;
+        resp.name = user.Name;
+        resp.email = user.Email;
+        resp.isAdmin = user.IsAdmin;
+        return Ok(resp);
+    }
+
+    // POST api/admin/users/{id}/demote - demote an admin to regular user (admin only)
+    [HttpPost("users/{id}/demote")]
+    public async Task<IActionResult> DemoteUser(int id)
+    {
+        var userId = HttpContext.Session.GetInt32("UserId");
+        if (userId == null)
+            return Forbid();
+
+        var actingUser = await _dbContext.Users.FindAsync(userId.Value);
+        if (actingUser == null || actingUser.IsDeactivated)
+        {
+            HttpContext.Session.Clear();
+            return Forbid();
+        }
+
+        if (!actingUser.IsAdmin)
+            return Forbid();
+
+        // Protect the owner/admin account with Id == 1 from being demoted
+        if (id == 1)
+            return BadRequest(new { message = "The owner account cannot be demoted." });
+
+        var user = await _dbContext.Users.FindAsync(id);
+        if (user == null || user.IsDeactivated)
+            return NotFound(new { message = "User not found" });
+
+        if (!user.IsAdmin)
+            return Conflict(new { message = "User is not an admin" });
+
+        user.IsAdmin = false;
+        _dbContext.Users.Update(user);
+        await _dbContext.SaveChangesAsync();
+
+        dynamic resp = new System.Dynamic.ExpandoObject();
+        resp.id = user.Id;
+        resp.name = user.Name;
+        resp.email = user.Email;
+        resp.isAdmin = user.IsAdmin;
+        return Ok(resp);
+    }
+
+    // GET api/admin/users - list users (admin only)
+    [HttpGet("users")]
+    public async Task<IActionResult> ListUsers()
+    {
+        var userId = HttpContext.Session.GetInt32("UserId");
+        if (userId == null)
+            return Forbid();
+
+        var actingUser = await _dbContext.Users.FindAsync(userId.Value);
+        if (actingUser == null || actingUser.IsDeactivated)
+        {
+            HttpContext.Session.Clear();
+            return Forbid();
+        }
+
+        if (!actingUser.IsAdmin)
+            return Forbid();
+
+        var users = await _dbContext.Users
+            .OrderBy(u => u.Id)
+            .Select(u => new
+            {
+                id = u.Id,
+                name = u.Name,
+                email = u.Email,
+                isAdmin = u.IsAdmin,
+                isDeactivated = u.IsDeactivated
+            })
+            .ToListAsync();
+
+        return Ok(users);
     }
 }

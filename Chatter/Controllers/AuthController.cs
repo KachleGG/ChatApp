@@ -26,7 +26,9 @@ public class AuthController : ControllerBase
 
         if (userId == null)
         {
-            return Ok(new { authenticated = false });
+            dynamic noAuth = new System.Dynamic.ExpandoObject();
+            noAuth.authenticated = false;
+            return Ok(noAuth);
         }
 
         var user = await _dbContext.Users.FindAsync(userId.Value);
@@ -35,20 +37,20 @@ public class AuthController : ControllerBase
         {
             // User no longer exists or is deactivated - clear session
             HttpContext.Session.Clear();
-            return Ok(new { authenticated = false });
+            dynamic noAuth = new System.Dynamic.ExpandoObject();
+            noAuth.authenticated = false;
+            return Ok(noAuth);
         }
 
-        return Ok(new
-        {
-            authenticated = true,
-            user = new
-            {
-                id = user.Id,
-                name = user.Name,
-                email = user.Email,
-                isAdmin = user.IsAdmin
-            }
-        });
+        dynamic resp = new System.Dynamic.ExpandoObject();
+        resp.authenticated = true;
+        dynamic u = new System.Dynamic.ExpandoObject();
+        u.id = user.Id;
+        u.name = user.Name;
+        u.email = user.Email;
+        u.isAdmin = user.IsAdmin;
+        resp.user = u;
+        return Ok(resp);
     }
 
     // POST api/auth/login
@@ -100,17 +102,15 @@ public class AuthController : ControllerBase
         HttpContext.Session.SetString("UserName", user.Name);
 
         // Return success with user info (without password)
-        return Ok(new
-        {
-            message = "Login successful",
-            user = new
-            {
-                id = user.Id,
-                name = user.Name,
-                email = user.Email,
-                isAdmin = user.IsAdmin
-            }
-        });
+        dynamic resp = new System.Dynamic.ExpandoObject();
+        resp.message = "Login successful";
+        dynamic u = new System.Dynamic.ExpandoObject();
+        u.id = user.Id;
+        u.name = user.Name;
+        u.email = user.Email;
+        u.isAdmin = user.IsAdmin;
+        resp.user = u;
+        return Ok(resp);
     }
 
     // POST api/auth/logout

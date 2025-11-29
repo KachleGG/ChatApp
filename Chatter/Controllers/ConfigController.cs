@@ -23,12 +23,11 @@ public class ConfigController : ControllerBase
         var prohibitGeneral = _configuration.GetValue<bool>("ServerSettings:ProhibitGeneral");
         var userGroupLimit = _configuration.GetValue<int>("ServerSettings:UserGroupLimit", 5);
 
-        return Ok(new
-        {
-            prohibitGroups,
-            privateMode,
-            prohibitGeneral,
-            userGroupLimit
-        });
+        dynamic resp = new System.Dynamic.ExpandoObject();
+        resp.prohibitGroups = prohibitGroups;
+        resp.privateMode = privateMode;
+        resp.prohibitGeneral = prohibitGeneral;
+        resp.userGroupLimit = userGroupLimit;
+        return Ok(resp);
     }
 }

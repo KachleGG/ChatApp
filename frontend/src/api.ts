@@ -1,4 +1,5 @@
-export type CheckAuthResult = { authenticated: boolean }
+export type AuthUser = { id: number; name: string; email: string; isAdmin?: boolean }
+export type CheckAuthResult = { authenticated: boolean; user?: AuthUser | null }
 
 const API_BASE = '' // relative to dev server; adjust if your API is hosted elsewhere
 
@@ -18,10 +19,10 @@ export async function checkAuth(): Promise<CheckAuthResult> {
   try {
     // Try a simple GET to the auth endpoint; backend may return 404/401 which we treat as unauthenticated
     const data = await request('/api/auth/check')
-    // Expect backend to return an object with `authenticated` boolean, but be lenient.
-    return { authenticated: !!(data && data.authenticated) }
+    // Expect backend to return { authenticated: boolean, user?: { ... } }
+    return { authenticated: !!(data && data.authenticated), user: data.user ?? null }
   } catch (e) {
-    return { authenticated: false }
+    return { authenticated: false, user: null }
   }
 }
 

@@ -1,5 +1,9 @@
 using Chatter.Data;
+using Chatter.Helpers;
+using Chatter.Models;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Hosting;
 
 namespace Chatter
 {
@@ -72,6 +76,41 @@ namespace Chatter
                 {
                     Console.WriteLine($"Database migration error: {ex.Message}");
                     throw;
+                }
+
+                // Idempotent admin seeding: create a default admin user if none exists.
+                // This runs in any environment (including Production) but will not create duplicates.
+                try
+                {
+                    // Read admin credentials from environment variables if provided; fall back to defaults.
+                    var adminName = Environment.GetEnvironmentVariable("ADMIN_USERNAME") ?? "admin";
+                    var adminEmail = Environment.GetEnvironmentVariable("ADMIN_EMAIL") ?? "admin@admin.com";
+                    var adminPassword = Environment.GetEnvironmentVariable("ADMIN_PASSWORD") ?? "admin";
+
+                    var existingAdmin = dbContext.Users.Any(u => u.IsAdmin || u.Name == adminName || u.Email == adminEmail);
+                    if (!existingAdmin)
+                    {
+                        var adminUser = new User
+                        {
+                            Name = adminName,
+                            Email = adminEmail,
+                            Password = PasswordHasher.HashPassword(adminPassword),
+                            IsAdmin = true
+                        };
+
+                        dbContext.Users.Add(adminUser);
+                        dbContext.SaveChanges();
+                        Console.WriteLine($"Seeded admin user '{adminName}' ('{adminEmail}')");
+                    }
+                    else
+                    {
+                        Console.WriteLine("Admin user already exists; skipping seeding.");
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"Admin seeding error: {ex.Message}");
+                    // Don't throw here — seeding failure shouldn't block app startup in most cases.
                 }
             }
 

@@ -80,7 +80,8 @@ router.beforeEach(async (to, from, next) => {
       return
     }
 
-    const { authenticated } = await _api.checkAuth()
+    const auth = await _api.checkAuth()
+    const { authenticated } = auth
     if (!authenticated) {
       // Immediately redirect unauthenticated users to login
       next({ name: 'Login', query: { redirect: to.fullPath } })
@@ -89,13 +90,22 @@ router.beforeEach(async (to, from, next) => {
 
     // Check if route requires admin and user is admin
     if (to.meta.requiresAdmin) {
-      const checkRes = await fetch('/api/auth/check', { credentials: 'include' })
-      if (checkRes.ok) {
-        const data = await checkRes.json()
-        if (!data.user?.isAdmin) {
-          // Not admin - redirect to home
+      // Prefer the already-fetched user from `api.checkAuth()` when available
+      const user = auth.user ?? null
+      if (user) {
+        if (!user.isAdmin) {
           next({ name: 'Home' })
           return
+        }
+      } else {
+        // Fallback: fetch directly if user not present
+        const checkRes = await fetch('/api/auth/check', { credentials: 'include' })
+        if (checkRes.ok) {
+          const data = await checkRes.json()
+          if (!data.user?.isAdmin) {
+            next({ name: 'Home' })
+            return
+          }
         }
       }
     }

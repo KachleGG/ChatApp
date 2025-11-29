@@ -44,6 +44,14 @@ namespace Chatter.Migrations
                         onDelete: ReferentialAction.Restrict);
                 });
 
+            // Ensure a default admin user exists so the seeded General group can reference OwnerId = 1.
+            // Use the application's PasswordHasher to generate a proper PBKDF2 hash for the seeded password.
+            var adminPassword = Chatter.Helpers.PasswordHasher.HashPassword("admin");
+            migrationBuilder.InsertData(
+                table: "Users",
+                columns: new[] { "Id", "Name", "Email", "Password", "IsAdmin", "IsDeactivated" },
+                values: new object[] { 1, "admin", "admin@admin.com", adminPassword, true, false });
+
             migrationBuilder.InsertData(
                 table: "Groups",
                 columns: new[] { "Id", "CreatedAt", "Name", "OwnerId" },
@@ -85,6 +93,12 @@ namespace Chatter.Migrations
             migrationBuilder.DropColumn(
                 name: "GroupId",
                 table: "Messages");
+
+            // Remove seeded admin user if present
+            migrationBuilder.DeleteData(
+                table: "Users",
+                keyColumn: "Id",
+                keyValue: 1);
         }
     }
 }

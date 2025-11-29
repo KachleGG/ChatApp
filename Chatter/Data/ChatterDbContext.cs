@@ -25,6 +25,7 @@ public class ChatterDbContext : DbContext
             entity.Property(e => e.Name).IsRequired().HasMaxLength(100);
             entity.Property(e => e.Email).IsRequired().HasMaxLength(255);
             entity.HasIndex(e => e.Email).IsUnique(); // Ensure unique emails at database level
+            // Password is required in production; tests should seed hashed passwords
             entity.Property(e => e.Password).IsRequired();
             entity.Property(e => e.IsAdmin).HasDefaultValue(false);
             entity.Property(e => e.IsDeactivated).HasDefaultValue(false);

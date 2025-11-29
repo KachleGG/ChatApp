@@ -1,4 +1,5 @@
 <Solution>
+  <Project Path="../Benchmarks/Benchmarks.csproj" Id="99e1a18a-97a3-4057-9bd6-71896236732c" />
   <Project Path="../Tests/Tests.csproj" Id="c8e88e15-6936-4dfb-a30d-f689705f260e" />
   <Project Path="Chatter.csproj" />
 </Solution>

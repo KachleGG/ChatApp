@@ -8,6 +8,21 @@ A small ASP.NET Core 10.0 chat API with a Vue frontend. This README focuses on g
 - Frontend project: `frontend/` (Vite + Vue 3 + TypeScript)
 - Built frontend (served by backend): `Chatter/wwwroot/`
 - **The first user is always the admin**
+- **Admin user behavior:**
+  - The application ensures an admin user exists on startup. If no admin or matching account exists,
+    a default admin will be created.
+  - Default credentials (change immediately in any non-development environment):
+    - Username: `admin`
+    - Email: `admin@admin.com`
+    - Password: `admin`
+  - To override these defaults, set environment variables before starting the app:
+    - `ADMIN_USERNAME`, `ADMIN_EMAIL`, `ADMIN_PASSWORD`
+  - Security: Change the seeded admin password immediately after first run, and do not rely on
+    these defaults in production. Consider deleting or rotating the seeded admin account before
+    deploying a production instance.
+  - Note: Migrations may also contain a development seed in this repository. The startup seeder
+    will skip creating a user if an admin already exists.
+  - Admin panel: visit `/admin` after logging in (requires an admin account).
 
 ---
 
@@ -114,6 +129,26 @@ The repository already contains a `Migrations/` folder with recent migrations.
 - `POST /api/users` — create user
 
 Refer to the `Chatter/Controllers/` folder for controller implementations and exact request/response shapes.
+
+---
+
+**Admin panel access**
+
+The app will create an admin automatically on startup if one is not present. For local development this
+is convenient, but for production you must secure or rotate the account immediately:
+
+- Override credentials with environment variables: `ADMIN_USERNAME`, `ADMIN_EMAIL`, `ADMIN_PASSWORD`.
+- After initial login, change the seeded password right away via the profile or Admin panel.
+- To remove the seeded admin from an existing SQLite database (dev only), you can run:
+
+```powershell
+# from the project folder containing the SQLite DB
+sqlite3 ./Chatter/data/chatter.db "DELETE FROM Users WHERE Email = 'admin@admin.com';"
+```
+
+Or use a database client to delete or update the user record. For production deployments prefer
+explicit provisioning (scripts, secrets manager, or a one-time setup flow) rather than relying on
+default credentials baked into the repo.
 
 ---
 

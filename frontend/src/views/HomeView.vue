@@ -20,7 +20,7 @@
             @click="selectGroup(g.id)"
             title="Click to open group"
           >
-            <div class="group-avatar">{{ g.name.charAt(0) }}</div>
+            <div class="group-avatar">{{ (g.name || '').charAt(0) }}</div>
             <div class="group-meta">
               <div class="group-name">{{ g.name }}</div>
               <div class="group-owner">{{ g.ownerName || '' }}</div>
@@ -89,7 +89,7 @@
                 <li v-for="g in userGroups" :key="g.id">
                   <template v-if="mgEditId === g.id">
                     <div class="gm-left">
-                      <div class="gm-avatar">{{ g.name.charAt(0) }}</div>
+                      <div class="gm-avatar">{{ (g.name || '').charAt(0) }}</div>
                       <div class="gm-info" style="flex:1;">
                         <input v-model="mgEditName" class="form-group-input" />
                       </div>
@@ -101,7 +101,7 @@
                   </template>
                   <template v-else>
                     <div class="gm-left">
-                      <div class="gm-avatar">{{ g.name.charAt(0) }}</div>
+                      <div class="gm-avatar">{{ (g.name || '').charAt(0) }}</div>
                       <div class="gm-info">
                         <div class="gm-name">{{ g.name }}</div>
                         <div class="gm-owner">Owner: {{ g.ownerName || 'You' }}</div>
@@ -133,7 +133,7 @@
                 <ul class="group-list-manager">
                   <li v-for="g in memberGroups" :key="g.id">
                     <div class="gm-left">
-                      <div class="gm-avatar">{{ g.name.charAt(0) }}</div>
+                      <div class="gm-avatar">{{ (g.name || '').charAt(0) }}</div>
                       <div class="gm-info">
                         <div class="gm-name">{{ g.name }}</div>
                         <div class="gm-owner">Owner: {{ g.ownerName || 'Unknown' }}</div>
@@ -186,7 +186,7 @@
             :key="m.id || i"
             :class="['message', { 'message--mine': m.author === currentUser?.name }]"
           >
-            <div class="message-avatar">{{ m.author.charAt(0) }}</div>
+            <div class="message-avatar">{{ (m.author || '').charAt(0) }}</div>
             <div class="message-content">
                 <div class="message-header">
                     <div class="message-author">{{ m.author }}</div>
@@ -634,11 +634,10 @@ async function loadGroups() {
       return
     }
     let data = await res.json()
-    // If server didn't return General (because it's prohibited), don't add it client-side.
-    // Otherwise ensure General exists in the list (id=1)
-    if (!data.find((g: any) => g.id === 1) && !prohibitGeneral.value) {
-      data.unshift({ id: 1, name: 'General', ownerId: 1, ownerName: 'System' })
-    }
+    // Do not auto-insert a default 'General' group client-side. The server is the source
+    // of truth for groups and should return any groups that exist. This prevents a
+    // blank or placeholder channel appearing in the sidebar when the server intentionally
+    // omits General (for example when it's prohibited) or when data is incomplete.
     groups.value = data
     // If selected group doesn't exist, select General
     if (!groups.value.find(g => g.id === selectedGroupId.value)) {

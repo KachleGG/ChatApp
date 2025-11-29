@@ -63,25 +63,41 @@ const isPrivateMode = ref(false)
 async function handleLogin() {
   error.value = ''
   loginLoading.value = true
-  try {
-    const res = await fetch('/api/auth/login', {
-      method: 'POST',
-      credentials: 'include',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ Username: email.value, Password: password.value }),
-    })
-    if (!res.ok) {
-      const data = await res.json().catch(() => ({ message: 'Login failed' }))
-      error.value = data.message || `Login failed: ${res.status}`
-      return
+    try {
+      const res = await fetch('/api/auth/login', {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ Username: email.value, Password: password.value }),
+      })
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({ message: 'Login failed' }))
+        error.value = data.message || `Login failed: ${res.status}`
+        return
+      }
+
+      // Wait for session cookie to be recognized by the server by calling the auth check.
+      // This avoids a timing issue where an immediate client navigation may run before
+      // the browser has stored the Set-Cookie header from the login response.
+      const check = await fetch('/api/auth/check', { credentials: 'include' })
+      if (!check.ok) {
+        // If the check endpoint didn't return OK, show a generic error.
+        error.value = 'Login succeeded but authentication check failed.'
+        return
+      }
+      const body = await check.json().catch(() => null)
+      if (!body || !body.authenticated) {
+        error.value = 'Login succeeded but session not established.'
+        return
+      }
+
+      // On confirmed success, navigate to home
+      router.push({ name: 'Home' })
+    } catch (e) {
+      error.value = 'Network error'
+    } finally {
+      loginLoading.value = false
     }
-    // On success redirect to home
-    router.push({ name: 'Home' })
-  } catch (e) {
-    error.value = 'Network error'
-  } finally {
-    loginLoading.value = false
-  }
 }
 onMounted(async () => {
   try {

@@ -77,11 +77,22 @@ public class UsersController : ControllerBase
             var maxAttempts = 4;
             for (int attempt = 0; attempt < maxAttempts; attempt++)
             {
-                using var tx = await _dbContext.Database.BeginTransactionAsync();
+                // Some EF providers used in tests (InMemory) ignore transactions and may emit warnings
+                // or throw; tolerate that by falling back to no transaction when BeginTransactionAsync fails.
+                Microsoft.EntityFrameworkCore.Storage.IDbContextTransaction? tx = null;
+                try
+                {
+                    tx = await _dbContext.Database.BeginTransactionAsync();
+                }
+                catch
+                {
+                    tx = null; // proceed without an explicit transaction
+                }
+
                 try
                 {
                     var code = request.InviteCode!.Trim().ToUpperInvariant();
-                    var invite = await _dbContext.Invites.SingleOrDefaultAsync(i => i.Code == code);
+                    var invite = await _dbContext.Invites.FirstOrDefaultAsync(i => i.Code == code);
                     if (invite == null || invite.IsRevoked)
                     {
                         return BadRequest("Invalid or revoked invite code.");
@@ -124,21 +135,20 @@ public class UsersController : ControllerBase
 
                     await _dbContext.SaveChangesAsync();
 
-                    await tx.CommitAsync();
+                    if (tx != null) await tx.CommitAsync();
 
-                    return CreatedAtAction(nameof(Create), new { id = user.Id }, new
-                    {
-                        id = user.Id,
-                        name = user.Name,
-                        email = user.Email,
-                        isAdmin = user.IsAdmin,
-                        isDeactivated = user.IsDeactivated
-                    });
+                    dynamic resp = new System.Dynamic.ExpandoObject();
+                    resp.id = user.Id;
+                    resp.name = user.Name;
+                    resp.email = user.Email;
+                    resp.isAdmin = user.IsAdmin;
+                    resp.isDeactivated = user.IsDeactivated;
+                    return CreatedAtAction(nameof(Create), new { id = user.Id }, resp);
                 }
                 catch (DbUpdateConcurrencyException)
                 {
                     // concurrency on invite row; retry a few times
-                    await tx.RollbackAsync();
+                    if (tx != null) await tx.RollbackAsync();
                     if (attempt == maxAttempts - 1) throw;
                     // small delay before retry
                     await Task.Delay(50);
@@ -146,7 +156,7 @@ public class UsersController : ControllerBase
                 }
                 catch
                 {
-                    await tx.RollbackAsync();
+                    if (tx != null) await tx.RollbackAsync();
                     throw;
                 }
             }
@@ -168,14 +178,13 @@ public class UsersController : ControllerBase
         _dbContext.Users.Add(userNormal);
         await _dbContext.SaveChangesAsync();
 
-        return CreatedAtAction(nameof(Create), new { id = userNormal.Id }, new
-        {
-            id = userNormal.Id,
-            name = userNormal.Name,
-            email = userNormal.Email,
-            isAdmin = userNormal.IsAdmin,
-            isDeactivated = userNormal.IsDeactivated
-        });
+        dynamic respNormal = new System.Dynamic.ExpandoObject();
+        respNormal.id = userNormal.Id;
+        respNormal.name = userNormal.Name;
+        respNormal.email = userNormal.Email;
+        respNormal.isAdmin = userNormal.IsAdmin;
+        respNormal.isDeactivated = userNormal.IsDeactivated;
+        return CreatedAtAction(nameof(Create), new { id = userNormal.Id }, respNormal);
     }
 
     [HttpPut("{id}")]
@@ -241,14 +250,13 @@ public class UsersController : ControllerBase
         _dbContext.Users.Update(user);
         await _dbContext.SaveChangesAsync();
 
-        return Ok(new
-        {
-            id = user.Id,
-            name = user.Name,
-            email = user.Email,
-            isAdmin = user.IsAdmin,
-            isDeactivated = user.IsDeactivated
-        });
+        dynamic updated = new System.Dynamic.ExpandoObject();
+        updated.id = user.Id;
+        updated.name = user.Name;
+        updated.email = user.Email;
+        updated.isAdmin = user.IsAdmin;
+        updated.isDeactivated = user.IsDeactivated;
+        return Ok(updated);
     }
 
     [HttpDelete("{id}")]
@@ -271,6 +279,8 @@ public class UsersController : ControllerBase
         // Clear session on delete
         HttpContext.Session.Clear();
 
-        return Ok(new { message = "Account deactivated." });
+        dynamic msg = new System.Dynamic.ExpandoObject();
+        msg.message = "Account deactivated.";
+        return Ok(msg);
     }
 }

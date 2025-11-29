@@ -146,13 +146,76 @@
             </table>
           </div>
         </div>
+
+        <div class="admin-section" style="margin-top:16px">
+          <h2>User Management</h2>
+          <p>Promote or demote users. The owner account (Id = 1) cannot be demoted.</p>
+
+          <div class="user-controls" style="display:flex;gap:12px;align-items:center;margin-top:8px;margin-bottom:8px;flex-wrap:wrap">
+            <div style="display:flex;gap:8px;align-items:center">
+              <label style="color:var(--text-purple-70);font-weight:600">Find by</label>
+              <select v-model="searchField" class="text-input" style="width:140px">
+                <option value="name">Username</option>
+                <option value="email">Email</option>
+                <option value="id">ID</option>
+              </select>
+              <input v-model="searchQuery" class="text-input" placeholder="Search" style="width:240px" />
+              <button class="save-btn" @click="page = 1">Apply</button>
+            </div>
+
+            <div style="margin-left:auto;display:flex;gap:8px;align-items:center">
+              <label style="color:var(--text-purple-70);font-weight:600">Per page</label>
+              <select v-model.number="pageSize" class="text-input" style="width:100px">
+                <option :value="5">5</option>
+                <option :value="10">10</option>
+                <option :value="25">25</option>
+                <option :value="50">50</option>
+              </select>
+            </div>
+          </div>
+
+          <div v-if="usersLoading" class="loading">Loading users...</div>
+          <div v-else>
+            <div style="margin-bottom:8px;color:var(--text-purple-70)">Showing {{ pagedTotal }} users (filtered {{ filteredTotal }})</div>
+            <table style="width:100%;border-collapse:collapse;margin-top:8px">
+              <thead>
+                <tr style="text-align:left;color:var(--text-purple-70)">
+                  <th style="width:64px">ID</th><th>Name</th><th>Email</th><th style="width:80px">Admin</th><th style="width:160px"></th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-for="u in visibleUsers" :key="u.id" style="border-top:1px solid var(--border-white-5)">
+                  <td style="padding:8px 6px">{{ u.id }}</td>
+                  <td style="padding:8px 6px">{{ u.name }}</td>
+                  <td style="padding:8px 6px">{{ u.email }}</td>
+                  <td style="padding:8px 6px">{{ u.isAdmin ? 'Yes' : 'No' }}</td>
+                  <td style="padding:8px 6px;text-align:right">
+                    <button v-if="!u.isAdmin" class="save-btn" @click="promoteUser(u.id)">Promote</button>
+                    <button v-else class="delete-button" @click="demoteUser(u.id)" :disabled="u.id === 1">Demote</button>
+                  </td>
+                </tr>
+                <tr v-if="visibleUsers.length === 0">
+                  <td colspan="5" style="padding:12px;color:var(--text-purple-70)">No users match the current filter.</td>
+                </tr>
+              </tbody>
+            </table>
+
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-top:12px">
+              <div>
+                <button class="save-btn" @click="prevPage" :disabled="page === 1">Prev</button>
+                <button class="save-btn" @click="nextPage" :disabled="page >= pageCount">Next</button>
+              </div>
+              <div style="color:var(--text-purple-70)">Page {{ page }} / {{ pageCount }}</div>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, computed, watch } from 'vue'
 import { useRouter } from 'vue-router'
 
 const router = useRouter()
@@ -170,6 +233,43 @@ const creatingInvite = ref(false)
 const inviteNote = ref('')
 const inviteMaxUses = ref<number>(1)
 const inviteExpiresSeconds = ref<number>(0)
+const users = ref<Array<{ id:number; name:string; email:string; isAdmin:boolean; isDeactivated:boolean }>>([])
+const usersLoading = ref(false)
+
+// Search & pagination
+const searchQuery = ref('')
+const searchField = ref<'name'|'email'|'id'>('name')
+const page = ref(1)
+const pageSize = ref<number>(10)
+
+const filteredUsers = computed(() => {
+  const q = (searchQuery.value || '').toString().trim().toLowerCase()
+  if (!q) return users.value.slice()
+  if (searchField.value === 'id') {
+    const n = Number(q)
+    if (isNaN(n)) return []
+    return users.value.filter(u => u.id === n)
+  }
+  return users.value.filter(u => ((searchField.value === 'name' ? (u.name || '') : (u.email || ''))).toLowerCase().includes(q))
+})
+
+const filteredTotal = computed(() => filteredUsers.value.length)
+const pageCount = computed(() => Math.max(1, Math.ceil(filteredUsers.value.length / pageSize.value)))
+const visibleUsers = computed(() => {
+  const start = (page.value - 1) * pageSize.value
+  return filteredUsers.value.slice(start, start + pageSize.value)
+})
+const pagedTotal = computed(() => visibleUsers.value.length)
+
+watch([searchQuery, searchField, pageSize], () => { page.value = 1 })
+
+function prevPage() {
+  if (page.value > 1) page.value--
+}
+
+function nextPage() {
+  if (page.value < pageCount.value) page.value++
+}
 
 async function checkAdmin() {
   try {
@@ -198,9 +298,6 @@ onMounted(async () => {
   loading.value = false
   if (isAdmin.value) await fetchAdminConfig()
 })
-onMounted(async () => {
-  if (isAdmin.value) await loadInvites()
-})
 
 async function fetchAdminConfig() {
   loadingConfig.value = true
@@ -224,7 +321,10 @@ async function fetchAdminConfig() {
   } finally {
     loadingConfig.value = false
     // load invites after config loads
-    if (isAdmin.value) await loadInvites()
+    if (isAdmin.value) {
+      await loadInvites()
+      await loadUsers()
+    }
   }
 }
 
@@ -276,6 +376,49 @@ async function revokeInvite(code: string) {
     if (!res.ok) { const txt = await res.text().catch(() => ''); alert(`Revoke failed: ${res.status} ${txt}`); return }
     await loadInvites()
   } catch (e) { console.warn(e); alert('Network error while revoking invite') }
+}
+
+async function loadUsers() {
+  usersLoading.value = true
+  try {
+    const res = await fetch('/api/admin/users', { credentials: 'include' })
+    if (!res.ok) { users.value = []; return }
+    users.value = await res.json()
+  } catch (e) { users.value = []; console.warn(e) }
+  finally { usersLoading.value = false }
+}
+
+async function promoteUser(id: number) {
+  if (!confirm('Promote this user to admin?')) return
+  try {
+    const res = await fetch(`/api/admin/users/${id}/promote`, { method: 'POST', credentials: 'include' })
+    if (!res.ok) {
+      const txt = await res.text().catch(() => '')
+      alert(`Promote failed: ${res.status} ${txt}`)
+      return
+    }
+    await loadUsers()
+  } catch (e) {
+    console.warn(e)
+    alert('Network error while promoting user')
+  }
+}
+
+async function demoteUser(id: number) {
+  if (id === 1) { alert('The owner account cannot be demoted.'); return }
+  if (!confirm('Demote this admin to regular user?')) return
+  try {
+    const res = await fetch(`/api/admin/users/${id}/demote`, { method: 'POST', credentials: 'include' })
+    if (!res.ok) {
+      const txt = await res.text().catch(() => '')
+      alert(`Demote failed: ${res.status} ${txt}`)
+      return
+    }
+    await loadUsers()
+  } catch (e) {
+    console.warn(e)
+    alert('Network error while demoting user')
+  }
 }
 
 async function saveConfig() {

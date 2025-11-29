@@ -54,17 +54,19 @@ public class GroupsController : ControllerBase
             ))
             .ToListAsync();
 
-        var groups = groupEntities.Select(g => new
+        var groups = new List<object>();
+        foreach (var g in groupEntities)
         {
-            g.Id,
-            g.Name,
-            g.OwnerId,
-            OwnerName = g.Owner.Name,
-            g.CreatedAt,
-            g.IsDeactivated,
-            // Only reveal code to group owner or admin
-            Code = (g.OwnerId == userId.Value || user.IsAdmin) ? g.Code : null
-        }).ToList();
+            dynamic item = new System.Dynamic.ExpandoObject();
+            item.id = g.Id;
+            item.name = g.Name;
+            item.ownerId = g.OwnerId;
+            item.ownerName = g.Owner?.Name;
+            item.createdAt = g.CreatedAt;
+            item.isDeactivated = g.IsDeactivated;
+            item.code = (g.OwnerId == userId.Value || user.IsAdmin) ? g.Code : null;
+            groups.Add(item);
+        }
 
         return Ok(groups);
     }
@@ -117,18 +119,15 @@ public class GroupsController : ControllerBase
             }
         }
 
-        var group = new
-        {
-            groupEntity.Id,
-            groupEntity.Name,
-            groupEntity.OwnerId,
-            OwnerName = groupEntity.Owner.Name,
-            groupEntity.CreatedAt,
-            groupEntity.IsDeactivated,
-            Code = (isOwner || isAdmin) ? groupEntity.Code : null
-        };
-
-        return Ok(group);
+        dynamic resp = new System.Dynamic.ExpandoObject();
+        resp.id = groupEntity.Id;
+        resp.name = groupEntity.Name;
+        resp.ownerId = groupEntity.OwnerId;
+        resp.ownerName = groupEntity.Owner?.Name;
+        resp.createdAt = groupEntity.CreatedAt;
+        resp.isDeactivated = groupEntity.IsDeactivated;
+        resp.code = (isOwner || isAdmin) ? groupEntity.Code : null;
+        return Ok(resp);
     }
 
     // POST api/groups - Create a new group
@@ -185,15 +184,14 @@ public class GroupsController : ControllerBase
             // membership add is best-effort; ignore failures here
         }
 
-        return CreatedAtAction(nameof(GetGroup), new { id = newGroup.Id }, new
-        {
-            newGroup.Id,
-            newGroup.Name,
-            newGroup.OwnerId,
-            OwnerName = user.Name,
-            newGroup.CreatedAt,
-            newGroup.IsDeactivated
-        });
+        dynamic created = new System.Dynamic.ExpandoObject();
+        created.id = newGroup.Id;
+        created.name = newGroup.Name;
+        created.ownerId = newGroup.OwnerId;
+        created.ownerName = user.Name;
+        created.createdAt = newGroup.CreatedAt;
+        created.isDeactivated = newGroup.IsDeactivated;
+        return CreatedAtAction(nameof(GetGroup), new { id = newGroup.Id }, created);
     }
 
     // POST api/groups/{id}/code - generate a join code for the group (owner or admin)
@@ -234,7 +232,10 @@ public class GroupsController : ControllerBase
         group.CodeGeneratedAt = DateTime.UtcNow;
         await _dbContext.SaveChangesAsync();
 
-        return Ok(new { code = group.Code, generatedAt = group.CodeGeneratedAt });
+        dynamic codeResp = new System.Dynamic.ExpandoObject();
+        codeResp.code = group.Code;
+        codeResp.generatedAt = group.CodeGeneratedAt;
+        return Ok(codeResp);
     }
 
     // DELETE api/groups/{id}/code - revoke join code (owner or admin)
@@ -266,7 +267,9 @@ public class GroupsController : ControllerBase
         group.CodeGeneratedAt = null;
         await _dbContext.SaveChangesAsync();
 
-        return Ok(new { message = "Code revoked" });
+        dynamic revoked = new System.Dynamic.ExpandoObject();
+        revoked.message = "Code revoked";
+        return Ok(revoked);
     }
 
     // POST api/groups/join - join a group by code
@@ -288,7 +291,7 @@ public class GroupsController : ControllerBase
             return BadRequest(new { message = "Code is required" });
 
         var code = request.Code.Trim().ToUpperInvariant();
-        var group = await _dbContext.Groups.SingleOrDefaultAsync(g => g.Code == code && !g.IsDeactivated);
+        var group = await _dbContext.Groups.FirstOrDefaultAsync(g => g.Code == code && !g.IsDeactivated);
         if (group == null)
             return NotFound(new { message = "Group with provided code not found" });
 
@@ -296,17 +299,25 @@ public class GroupsController : ControllerBase
             return BadRequest(new { message = "Cannot join General group by code" });
 
         // Check existing membership
-        var existing = await _dbContext.GroupMemberships.SingleOrDefaultAsync(gm => gm.GroupId == group.Id && gm.UserId == userId.Value);
+        var existing = await _dbContext.GroupMemberships.FirstOrDefaultAsync(gm => gm.GroupId == group.Id && gm.UserId == userId.Value);
         if (existing != null)
         {
-            return Ok(new { message = "Already a member", id = group.Id, name = group.Name });
+            dynamic already = new System.Dynamic.ExpandoObject();
+            already.message = "Already a member";
+            already.id = group.Id;
+            already.name = group.Name;
+            return Ok(already);
         }
 
         var membership = new GroupMembership { GroupId = group.Id, UserId = userId.Value, JoinedAt = DateTime.UtcNow };
         _dbContext.GroupMemberships.Add(membership);
         await _dbContext.SaveChangesAsync();
 
-        return Ok(new { id = group.Id, name = group.Name, ownerId = group.OwnerId });
+        dynamic joinResp = new System.Dynamic.ExpandoObject();
+        joinResp.id = group.Id;
+        joinResp.name = group.Name;
+        joinResp.ownerId = group.OwnerId;
+        return Ok(joinResp);
     }
 
     private static string GenerateJoinCode(int length = 8)
@@ -367,15 +378,14 @@ public class GroupsController : ControllerBase
 
         await _dbContext.SaveChangesAsync();
 
-        return Ok(new
-        {
-            group.Id,
-            group.Name,
-            group.OwnerId,
-            OwnerName = user.Name,
-            group.CreatedAt,
-            group.IsDeactivated
-        });
+        dynamic upd = new System.Dynamic.ExpandoObject();
+        upd.id = group.Id;
+        upd.name = group.Name;
+        upd.ownerId = group.OwnerId;
+        upd.ownerName = user.Name;
+        upd.createdAt = group.CreatedAt;
+        upd.isDeactivated = group.IsDeactivated;
+        return Ok(upd);
     }
 
     // DELETE api/groups/{id} - Deactivate group
@@ -408,7 +418,9 @@ public class GroupsController : ControllerBase
         group.IsDeactivated = true;
         await _dbContext.SaveChangesAsync();
 
-        return Ok(new { message = "Group deactivated successfully" });
+        dynamic del = new System.Dynamic.ExpandoObject();
+        del.message = "Group deactivated successfully";
+        return Ok(del);
     }
 
     // POST api/groups/{id}/leave - leave a group (member request)
@@ -433,7 +445,7 @@ public class GroupsController : ControllerBase
         if (id == 1)
             return BadRequest(new { message = "Cannot leave General group" });
 
-        var membership = await _dbContext.GroupMemberships.SingleOrDefaultAsync(gm => gm.GroupId == id && gm.UserId == userId.Value);
+        var membership = await _dbContext.GroupMemberships.FirstOrDefaultAsync(gm => gm.GroupId == id && gm.UserId == userId.Value);
         if (membership == null)
             return BadRequest(new { message = "You are not a member of this group" });
 
@@ -458,7 +470,11 @@ public class GroupsController : ControllerBase
         _dbContext.GroupMemberships.Remove(membership);
         await _dbContext.SaveChangesAsync();
 
-        return Ok(new { message = "Left group", id = group.Id, ownerId = group.OwnerId });
+        dynamic left = new System.Dynamic.ExpandoObject();
+        left.message = "Left group";
+        left.id = group.Id;
+        left.ownerId = group.OwnerId;
+        return Ok(left);
     }
 }
 
