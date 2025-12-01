@@ -354,21 +354,20 @@
         <div style="display:flex;gap:12px;align-items:center;margin-top:8px">
           <label style="font-weight:600">Mode</label>
           <select v-model="cbMode" class="text-input" style="width:220px">
-            <option value="preset">Presets</option>
-            <option value="hourly">Hourly</option>
-            <option value="daily">Daily</option>
-            <option value="weekly">Weekly</option>
-            <option value="monthly">Monthly</option>
-            <option value="yearly">Yearly</option>
-            <option value="custom">Custom (raw cron)</option>
+            <option v-for="m in cbModeList" :key="m.value" :value="m.value">{{ m.label }}</option>
           </select>
-          <div style="margin-left:auto;color:var(--text-purple-70)">Preview: <code style="background:transparent;padding:0 6px">{{ previewCron }}</code></div>
+          <div style="margin-left:auto;color:var(--text-purple-70);display:flex;gap:10px;align-items:center">
+            <div>Preview:</div>
+            <code style="background:transparent;padding:0 6px">{{ previewCron }}</code>
+            <div style="font-size:13px;color:var(--text-purple-60)">Time: <strong>{{ previewTimeDisplay }}</strong></div>
+          </div>
         </div>
 
         <!-- Preset -->
-        <div v-if="cbMode === 'preset'" style="margin-top:12px;display:flex;gap:12px;align-items:center">
+          <div v-if="cbMode === 'preset'" style="margin-top:12px;display:flex;gap:12px;align-items:center">
           <label style="font-weight:600">Preset</label>
-          <select v-model="presetType" class="text-input" style="width:200px">
+          <select v-model="presetType" class="text-input text-select" style="width:200px" @focus="onSelectFocus('presetType')" @blur="onSelectBlur"
+                  :class="{ 'select-focused': selectFocused === 'presetType' }">
             <option value="everyNmin">Every N minutes</option>
             <option value="everyNhours">Every N hours</option>
             <option value="hourlyAt">Hourly at minute</option>
@@ -386,14 +385,30 @@
         <!-- Daily -->
         <div v-if="cbMode === 'daily'" style="margin-top:12px;display:flex;gap:12px;align-items:center">
           <label style="font-weight:600">Time (UTC)</label>
-          <input type="time" v-model="dailyTime" class="text-input" style="width:140px" />
+          <div style="display:flex;gap:8px;align-items:center">
+            <select v-model.number="dailyHour" class="text-input text-select" style="width:90px">
+              <option v-for="h in 24" :key="h" :value="h-1">{{ (h-1) < 10 ? '0'+(h-1) : (h-1) }}</option>
+            </select>
+            <select v-model.number="dailyMinuteNum" class="text-input text-select" style="width:90px">
+              <option v-for="m in 60" :key="m" :value="m-1">{{ (m-1) < 10 ? '0'+(m-1) : (m-1) }}</option>
+            </select>
+            <div style="color:var(--text-purple-70);font-size:13px">24h: <strong>{{ previewTimeDisplay }}</strong></div>
+          </div>
         </div>
 
         <!-- Weekly -->
         <div v-if="cbMode === 'weekly'" style="margin-top:12px">
           <div style="display:flex;gap:12px;align-items:center;margin-bottom:8px">
             <label style="font-weight:600">Time (UTC)</label>
-            <input type="time" v-model="weeklyTime" class="text-input" style="width:140px" />
+            <div style="display:flex;gap:8px;align-items:center">
+              <select v-model.number="weeklyHour" class="text-input text-select" style="width:90px">
+                <option v-for="h in 24" :key="h" :value="h-1">{{ (h-1) < 10 ? '0'+(h-1) : (h-1) }}</option>
+              </select>
+              <select v-model.number="weeklyMinuteNum" class="text-input text-select" style="width:90px">
+                <option v-for="m in 60" :key="m" :value="m-1">{{ (m-1) < 10 ? '0'+(m-1) : (m-1) }}</option>
+              </select>
+              <div style="color:var(--text-purple-70);font-size:13px">24h: <strong>{{ previewTimeDisplay }}</strong></div>
+            </div>
           </div>
           <div style="display:flex;gap:8px;flex-wrap:wrap">
             <label v-for="(d, idx) in cronDayNames" :key="d" style="display:inline-flex;align-items:center;gap:6px">
@@ -415,7 +430,15 @@
             <label style="font-weight:600">Day</label>
             <input type="number" v-model.number="monthlyDay" class="text-input" style="width:120px" min="1" max="31" />
             <label style="font-weight:600">Time</label>
-            <input type="time" v-model="monthlyTime" class="text-input" style="width:120px" />
+            <div style="display:flex;gap:8px;align-items:center">
+              <select v-model.number="monthlyHour" class="text-input text-select" style="width:90px">
+                <option v-for="h in 24" :key="h" :value="h-1">{{ (h-1) < 10 ? '0'+(h-1) : (h-1) }}</option>
+              </select>
+              <select v-model.number="monthlyMinuteNum" class="text-input text-select" style="width:90px">
+                <option v-for="m in 60" :key="m" :value="m-1">{{ (m-1) < 10 ? '0'+(m-1) : (m-1) }}</option>
+              </select>
+              <div style="color:var(--text-purple-70);font-size:13px">24h: <strong>{{ previewTimeDisplay }}</strong></div>
+            </div>
           </div>
           <div v-else style="display:flex;gap:12px;align-items:center">
             <label style="font-weight:600">Ordinal</label>
@@ -427,7 +450,8 @@
               <option value="last">Last</option>
             </select>
             <label style="font-weight:600">Weekday</label>
-            <select v-model.number="monthlyWeekday" class="text-input" style="width:120px">
+            <select v-model.number="monthlyWeekday" class="text-input text-select" style="width:120px" @focus="onSelectFocus('monthlyWeekday')" @blur="onSelectBlur"
+                    :class="{ 'select-focused': selectFocused === 'monthlyWeekday' }">
               <option v-for="(d, i) in cronDayNames" :key="d" :value="i">{{ d }}</option>
             </select>
           </div>
@@ -440,7 +464,14 @@
           <label style="font-weight:600">Day</label>
           <input type="number" v-model.number="yearlyDay" class="text-input" style="width:120px" min="1" max="31" />
           <label style="font-weight:600">Time</label>
-          <input type="time" v-model="yearlyTime" class="text-input" style="width:140px" />
+          <div style="display:flex;gap:8px;align-items:center">
+            <select v-model.number="yearlyHour" class="text-input text-select" style="width:90px">
+              <option v-for="h in 24" :key="h" :value="h-1">{{ (h-1) < 10 ? '0'+(h-1) : (h-1) }}</option>
+            </select>
+            <select v-model.number="yearlyMinuteNum" class="text-input text-select" style="width:90px">
+              <option v-for="m in 60" :key="m" :value="m-1">{{ (m-1) < 10 ? '0'+(m-1) : (m-1) }}</option>
+            </select>
+          </div>
         </div>
 
         <!-- Custom -->
@@ -511,6 +542,15 @@ const hourlyMinute = ref<number>(0)
 // daily/weekly/monthly/yearly time fields
 const dailyTime = ref('02:00')
 const weeklyTime = ref('02:00')
+// explicit hour/minute fields to avoid locale-dependent <input type=time> behaviour
+const dailyHour = ref<number>(2)
+const dailyMinuteNum = ref<number>(0)
+const weeklyHour = ref<number>(2)
+const weeklyMinuteNum = ref<number>(0)
+const monthlyHour = ref<number>(2)
+const monthlyMinuteNum = ref<number>(0)
+const yearlyHour = ref<number>(2)
+const yearlyMinuteNum = ref<number>(0)
 const weeklyDays = ref<Array<boolean>>([false,false,false,false,false,false,false])
 
 // monthly options
@@ -531,6 +571,73 @@ const customCron = ref('')
 // validation state for preview
 const cronValidation = ref<{ valid: boolean; message?: string } | null>(null)
 
+// UI helpers for select focus and time formatting
+const selectFocused = ref<string | null>(null)
+function onSelectFocus(name: string) { selectFocused.value = name }
+function onSelectBlur() { selectFocused.value = null }
+
+function pad2(n: number) { return n < 10 ? '0' + n : String(n) }
+function formatTimeHHmm(val: string) {
+  if (!val) return '--:--'
+  // Expect format HH:mm already (from <input type=time>), but normalize
+  const parts = (val || '').split(':')
+  if (parts.length < 2) return val
+  const hh = Number(parts[0])
+  const mm = Number(parts[1])
+  if (isNaN(hh) || isNaN(mm)) return val
+  return `${pad2(hh)}:${pad2(mm)}`
+}
+
+const previewTimeDisplay = computed(() => {
+  try {
+    if (cbMode.value === 'daily') return `${pad2(dailyHour.value)}:${pad2(dailyMinuteNum.value)}`
+    if (cbMode.value === 'weekly') return `${pad2(weeklyHour.value)}:${pad2(weeklyMinuteNum.value)}`
+    if (cbMode.value === 'monthly') return `${pad2(monthlyHour.value)}:${pad2(monthlyMinuteNum.value)}`
+    if (cbMode.value === 'yearly') return `${pad2(yearlyHour.value)}:${pad2(yearlyMinuteNum.value)}`
+    if (cbMode.value === 'hourly') return `:${pad2(hourlyMinute.value)} (every hour)`
+    return `${pad2(dailyHour.value)}:${pad2(dailyMinuteNum.value)}`
+  } catch { return '--:--' }
+})
+
+// Custom combobox (Mode) state + helpers
+const cbModeList = [
+  { value: 'preset', label: 'Presets' },
+  { value: 'hourly', label: 'Hourly' },
+  { value: 'daily', label: 'Daily' },
+  { value: 'weekly', label: 'Weekly' },
+  { value: 'monthly', label: 'Monthly' },
+  { value: 'yearly', label: 'Yearly' },
+  { value: 'custom', label: 'Custom (raw cron)' },
+]
+
+const cbModeLabels = cbModeList.reduce((acc: Record<string,string>, m) => { acc[m.value] = m.label; return acc }, {} as Record<string,string>)
+const cbModeOpen = ref(false)
+const cbCombo = ref<HTMLElement | null>(null)
+
+function toggleCbMode() { cbModeOpen.value = !cbModeOpen.value }
+function setCbMode(v: string) { cbMode.value = v as any; cbModeOpen.value = false }
+
+function onCbKeyDown(e: KeyboardEvent) {
+  if (e.key === 'ArrowDown' || e.key === 'Enter') {
+    cbModeOpen.value = true
+    // focus the first item in the dropdown if present
+    setTimeout(() => {
+      const el = cbCombo.value?.querySelector('.combo-dropdown .combo-item') as HTMLElement | null
+      el?.focus()
+    }, 0)
+  }
+  if (e.key === 'Escape') cbModeOpen.value = false
+}
+
+function onDocClickForCb(e: MouseEvent) {
+  if (!cbCombo.value) return
+  const target = e.target as Node
+  if (!cbCombo.value.contains(target)) cbModeOpen.value = false
+}
+
+onMounted(() => { document.addEventListener('click', onDocClickForCb) })
+onUnmounted(() => { document.removeEventListener('click', onDocClickForCb) })
+
 const previewCron = computed(() => {
   try {
     if (cbMode.value === 'preset') {
@@ -541,30 +648,36 @@ const previewCron = computed(() => {
     }
     if (cbMode.value === 'hourly') return `${Math.max(0, Math.floor(hourlyMinute.value))} * * * *`
     if (cbMode.value === 'daily') {
-      const [hh, mm] = (dailyTime.value || '02:00').split(':')
-      return `${Number(mm)} ${Number(hh)} * * *`
+      const hh = Number(dailyHour.value)
+      const mm = Number(dailyMinuteNum.value)
+      return `${mm} ${hh} * * *`
     }
     if (cbMode.value === 'weekly') {
-      const [hh, mm] = (weeklyTime.value || '02:00').split(':')
-      const selected = weeklyDays.value.map((v, i) => v ? String(i) : null).filter(Boolean)
+      const hh = Number(weeklyHour.value)
+      const mm = Number(weeklyMinuteNum.value)
+      // Use day names (Sun,Mon,...) in the cron DOW field so the expression
+      // is clearer and compatible with common cron parsers that accept names.
+      const selected = weeklyDays.value.map((v, i) => v ? cronDayNames[i] : null).filter(Boolean)
       const dow = selected.length ? selected.join(',') : '*'
-      return `${Number(mm)} ${Number(hh)} * * ${dow}`
+      return `${mm} ${hh} * * ${dow}`
     }
     if (cbMode.value === 'monthly') {
-      const [hh, mm] = (monthlyTime.value || '02:00').split(':')
+      const hh = Number(monthlyHour.value)
+      const mm = Number(monthlyMinuteNum.value)
       if (monthlyOption.value === 'dom') {
         const d = Math.max(1, Math.min(31, monthlyDay.value))
-        return `${Number(mm)} ${Number(hh)} ${d} * *`
+        return `${mm} ${hh} ${d} * *`
       }
       // nth weekday -> translate to cron 'day-of-month' is not expressive; use nearest day pattern with L/ or complex form — fallback to custom pattern using ? not supported
       // We'll emit a cron that runs every day at time and rely on server-side custom if user needs exact nth-weekday.
       return `${Number(mm)} ${Number(hh)} * * *`
     }
     if (cbMode.value === 'yearly') {
-      const [hh, mm] = (yearlyTime.value || '02:00').split(':')
+      const hh = Number(yearlyHour.value)
+      const mm = Number(yearlyMinuteNum.value)
       const mon = Math.max(1, Math.min(12, yearlyMonth.value))
       const day = Math.max(1, Math.min(31, yearlyDay.value))
-      return `${Number(mm)} ${Number(hh)} ${day} ${mon} *`
+      return `${mm} ${hh} ${day} ${mon} *`
     }
     // custom
     if (cbMode.value === 'custom') return customCron.value.trim()
@@ -924,16 +1037,24 @@ function openCronBuilder() {
   presetN.value = 15
   hourlyMinute.value = 0
   dailyTime.value = '02:00'
+  dailyHour.value = 2
+  dailyMinuteNum.value = 0
   weeklyTime.value = '02:00'
+  weeklyHour.value = 2
+  weeklyMinuteNum.value = 0
   weeklyDays.value = [false,false,false,false,false,false,false]
   monthlyOption.value = 'dom'
   monthlyDay.value = 1
   monthlyOrdinal.value = 'first'
   monthlyWeekday.value = 1
   monthlyTime.value = '02:00'
+  monthlyHour.value = 2
+  monthlyMinuteNum.value = 0
   yearlyMonth.value = 1
   yearlyDay.value = 1
   yearlyTime.value = '02:00'
+  yearlyHour.value = 2
+  yearlyMinuteNum.value = 0
   customCron.value = ''
 
   const sRaw = (config.value.backupSchedule || '').toString().trim()
@@ -1253,6 +1374,53 @@ onUnmounted(() => { window.removeEventListener('keydown', onKeyDownForModal) })
   border: 1px solid var(--bg-chat-sidebar-1);
   color: var(--text-white);
 }
+
+.text-select {
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  appearance: none;
+  background-image: linear-gradient(45deg, transparent 50%, var(--text-white) 50%), linear-gradient(135deg, var(--text-white) 50%, transparent 50%);
+  background-position: calc(100% - 18px) calc(1em + 2px), calc(100% - 13px) calc(1em + 2px);
+  background-size: 6px 6px, 6px 6px;
+  background-repeat: no-repeat;
+  padding-right: 36px;
+  cursor: pointer;
+}
+
+.select-focused {
+  box-shadow: 0 0 0 3px rgba(100, 120, 255, 0.15);
+  border-color: var(--brand-blue-primary);
+}
+
+/* Custom combobox styles */
+.combo { position: relative; display: inline-block; }
+.combo-button {
+  width: 100%;
+  text-align: left;
+  padding: 10px 12px;
+  border-radius: 6px;
+  background: var(--bg-chat-dark-2);
+  border: 1px solid var(--bg-chat-sidebar-1);
+  color: var(--text-white);
+  cursor: pointer;
+  display:flex;align-items:center;justify-content:space-between;
+}
+.combo-button:focus { outline: none; box-shadow: 0 0 0 3px rgba(100,120,255,0.15); border-color:var(--brand-blue-primary) }
+.combo-caret { margin-left:8px; color:var(--text-purple-70) }
+.combo-dropdown {
+  position: absolute;
+  left: 0; right: 0;
+  margin-top:6px;
+  max-height:220px; overflow:auto;
+  background:var(--bg-chat-sidebar-1);
+  border:1px solid var(--bg-chat-sidebar-1);
+  border-radius:8px;
+  box-shadow:0 8px 20px rgba(0,0,0,0.6);
+  z-index: 1200;
+  padding:6px 6px;
+}
+.combo-item { padding:8px 10px; border-radius:6px; cursor:pointer; color:var(--text-white); }
+.combo-item:hover, .combo-item:focus { background:var(--bg-chat-dark-2); outline:none }
 
 .switch {
   position: relative;

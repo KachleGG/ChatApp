@@ -2,6 +2,7 @@ using Chatter.Data;
 using Chatter.Helpers;
 using Chatter.Models;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.AspNetCore.Authentication.Cookies;
 
 namespace Chatter
 {
@@ -58,6 +59,22 @@ namespace Chatter
 
             builder.Services.AddControllers();
             builder.Services.AddOpenApi();
+
+            // Configure a default authentication scheme so Authorization/Forbid/Challenge work.
+            // The app uses session cookies for user session state; register cookie auth as the default.
+            builder.Services.AddAuthentication(options =>
+            {
+                options.DefaultAuthenticateScheme = CookieAuthenticationDefaults.AuthenticationScheme;
+                options.DefaultChallengeScheme = CookieAuthenticationDefaults.AuthenticationScheme;
+                options.DefaultForbidScheme = CookieAuthenticationDefaults.AuthenticationScheme;
+            })
+            .AddCookie(CookieAuthenticationDefaults.AuthenticationScheme, options =>
+            {
+                // Keep defaults; ensure cookies are HttpOnly and SameSite to match session policy
+                options.LoginPath = "/login"; // controller or client handles login route
+                options.Cookie.HttpOnly = true;
+                options.Cookie.SameSite = SameSiteMode.Lax;
+            });
 
             // Register BackupService as a hosted service only when enabled in configuration.
             // This keeps the service out of the app unless the operator has explicitly enabled backups.
@@ -146,6 +163,9 @@ namespace Chatter
 
             app.UseSession();
 
+            // Ensure authentication middleware runs before authorization so
+            // Forbid/Challenge and [Authorize] work correctly.
+            app.UseAuthentication();
             app.UseAuthorization();
 
             app.MapControllers();
