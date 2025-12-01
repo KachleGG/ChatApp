@@ -1,9 +1,10 @@
 {
   "version": 2,
-  "dgSpecHash": "Lx6l4E48MHQ=",
+  "dgSpecHash": "KZdL/KHRpm8=",
   "success": true,
   "projectFilePath": "D:\\Projects\\ChatApp\\Tests\\Tests.csproj",
   "expectedPackageFiles": [
+    "C:\\Users\\drzte\\.nuget\\packages\\cronos\\0.11.1\\cronos.0.11.1.nupkg.sha512",
     "C:\\Users\\drzte\\.nuget\\packages\\microsoft.aspnetcore.authentication.abstractions\\2.3.0\\microsoft.aspnetcore.authentication.abstractions.2.3.0.nupkg.sha512",
     "C:\\Users\\drzte\\.nuget\\packages\\microsoft.aspnetcore.authentication.core\\2.3.0\\microsoft.aspnetcore.authentication.core.2.3.0.nupkg.sha512",
     "C:\\Users\\drzte\\.nuget\\packages\\microsoft.aspnetcore.authorization\\2.3.0\\microsoft.aspnetcore.authorization.2.3.0.nupkg.sha512",

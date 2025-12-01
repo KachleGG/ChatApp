@@ -18,6 +18,14 @@
           "Tests.dll": {}
         }
       },
+      "Cronos/0.11.1": {
+        "runtime": {
+          "lib/net6.0/Cronos.dll": {
+            "assemblyVersion": "0.0.0.0",
+            "fileVersion": "0.11.1.1589"
+          }
+        }
+      },
       "Microsoft.AspNetCore.OpenApi/10.0.0": {
         "dependencies": {
           "Microsoft.OpenApi": "2.0.0"
@@ -585,6 +593,7 @@
       },
       "Chatter/1.0.0": {
         "dependencies": {
+          "Cronos": "0.11.1",
           "Microsoft.AspNetCore.OpenApi": "10.0.0",
           "Microsoft.EntityFrameworkCore": "10.0.0",
           "Microsoft.EntityFrameworkCore.Sqlite": "10.0.0"
@@ -611,6 +620,13 @@
       "type": "project",
       "serviceable": false,
       "sha512": ""
+    },
+    "Cronos/0.11.1": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-5Ug+giPQITSAdTp/METAsofRSSUi3I5p7t4dlcXnzUgUzwZb4HkOBcYfpHuPwAHrnKJjmyW8amVzLD6mfLpaBg==",
+      "path": "cronos/0.11.1",
+      "hashPath": "cronos.0.11.1.nupkg.sha512"
     },
     "Microsoft.AspNetCore.OpenApi/10.0.0": {
       "type": "package",

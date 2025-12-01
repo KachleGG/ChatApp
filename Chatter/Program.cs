@@ -2,8 +2,6 @@ using Chatter.Data;
 using Chatter.Helpers;
 using Chatter.Models;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Configuration;
-using Microsoft.Extensions.Hosting;
 
 namespace Chatter
 {
@@ -42,6 +40,7 @@ namespace Chatter
             builder.Services.AddDbContext<ChatterDbContext>(options =>
                 options.UseSqlite($"Data Source={databasePath}"));
 
+
             // Configure session support
             builder.Services.AddDistributedMemoryCache(); // Required for session
 
@@ -59,6 +58,28 @@ namespace Chatter
 
             builder.Services.AddControllers();
             builder.Services.AddOpenApi();
+
+            // Register BackupService as a hosted service only when enabled in configuration.
+            // This keeps the service out of the app unless the operator has explicitly enabled backups.
+            try
+            {
+                var backupEnabled = builder.Configuration.GetValue<bool?>("ServerSettings:BackupEnabled") ?? false;
+                if (backupEnabled)
+                {
+                    // register as a singleton and expose as IHostedService so controllers can also use it if needed
+                    builder.Services.AddSingleton<Chatter.Services.BackupService>();
+                    builder.Services.AddHostedService(sp => sp.GetRequiredService<Chatter.Services.BackupService>());
+                    Console.WriteLine("BackupService registered (enabled via ServerSettings:BackupEnabled).");
+                }
+                else
+                {
+                    Console.WriteLine("BackupService not registered (ServerSettings:BackupEnabled is false).");
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error registering BackupService: {ex.Message}");
+            }
 
             var app = builder.Build();
 

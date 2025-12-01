@@ -88,8 +88,8 @@ namespace Tests.ControllerTests
             var result = await _controller.CreateGroup(request) as CreatedAtActionResult;
             Assert.IsNotNull(result);
             dynamic group = result!.Value;
-            Assert.AreEqual("NewGroup", group.Name);
-            Assert.AreEqual(2, group.OwnerId);
+            Assert.AreEqual("NewGroup", group.name);
+            Assert.AreEqual(2, group.ownerId);
         }
 
         [TestMethod]
@@ -112,7 +112,7 @@ namespace Tests.ControllerTests
             SetSessionUser(2);
             var request = new CreateGroupRequest { Name = "LeaveGroup" };
             var created = await _controller.CreateGroup(request) as CreatedAtActionResult;
-            var groupId = ((dynamic)created!.Value).Id;
+            var groupId = ((dynamic)created!.Value).id;
 
             // Add another member
             _dbContext.GroupMemberships.Add(new GroupMembership { GroupId = groupId, UserId = 1, JoinedAt = DateTime.UtcNow });

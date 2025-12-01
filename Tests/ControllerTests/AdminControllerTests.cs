@@ -1,11 +1,14 @@
+using Chatter.Services;
 using Chatter.Controllers;
 using Chatter.Data;
+using System.IO.Compression;
 using Chatter.Helpers;
 using Chatter.Models;
 using Chatter.Models.DTOs;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.FileProviders;
@@ -55,7 +58,7 @@ public class AdminControllerTests
         _httpContext = new DefaultHttpContext();
         _httpContext.Session = new TestSession();
 
-        _controller = new AdminController(_db, _config, _env)
+        _controller = new AdminController(_db, _config, _env, NullLogger<AdminController>.Instance)
         {
             ControllerContext = new ControllerContext
             {
@@ -218,6 +221,8 @@ public class AdminControllerTests
         Assert.IsNotNull(promoted);
         Assert.IsTrue(promoted!.IsAdmin);
     }
+
+    // Backup-related controller test removed
 }
 
 

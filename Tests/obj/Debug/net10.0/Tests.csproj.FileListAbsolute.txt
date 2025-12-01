@@ -154,3 +154,4 @@ D:\Projects\ChatApp\Tests\bin\Debug\net10.0\zh-Hans\Microsoft.VisualStudio.TestP
 D:\Projects\ChatApp\Tests\bin\Debug\net10.0\zh-Hant\Microsoft.VisualStudio.TestPlatform.TestFramework.resources.dll
 D:\Projects\ChatApp\Tests\bin\Debug\net10.0\Microsoft.VisualStudio.TestPlatform.TestFramework.Extensions.dll
 D:\Projects\ChatApp\Tests\bin\Debug\net10.0\Microsoft.VisualStudio.TestPlatform.TestFramework.Extensions.xml
+D:\Projects\ChatApp\Tests\bin\Debug\net10.0\Cronos.dll

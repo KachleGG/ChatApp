@@ -2,16 +2,15 @@
 
 ## Server
 
-- [ ] Create update standard
 - [ ] Complete AdminView remake
 - [ ] Add chat restrictions/filtering(swear words.....)
-- [ ] Add optional database backup
+- [x] Add optional database backup
+  - [x] Make the timing work and periodical creation of backups
+  - [x] Make the retention work
 - [ ] Getting server info on clicking something
-- [x] Adding admins for the server owner
 
 ## Frontend
 
-- [x] Make better icons
 - [ ] Getting server info on clicking something
 
 ---

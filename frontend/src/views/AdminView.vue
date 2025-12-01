@@ -65,6 +65,11 @@
             </div>
 
             <div class="setting-row">
+              <div class="setting-label">User Group Limit</div>
+              <input class="text-input" type="number" v-model.number="config.userGroupLimit" placeholder="5" />
+            </div>
+
+            <div class="setting-row">
               <div class="setting-label">HTTP URL</div>
               <input class="text-input" type="text" v-model="config.httpUrl" placeholder="http://*:9090" />
             </div>
@@ -124,7 +129,7 @@
             </div>
 
           <div v-if="invitesLoading" class="loading">Loading invites...</div>
-          <div v-else>
+            <div v-else>
             <table style="width:100%;border-collapse:collapse">
               <thead>
                 <tr style="text-align:left;color:var(--text-purple-70)">
@@ -209,19 +214,261 @@
             </div>
           </div>
         </div>
+
+        <div class="admin-section" style="margin-top:16px">
+          <h2>Backup Management</h2>
+          <p>Create and manage database backups. Schedule and retention settings are saved to server config.</p>
+          <div class="settings-grid">
+            <div class="setting-row">
+              <div class="setting-label">Enable Backups</div>
+              <label class="switch">
+                <input type="checkbox" v-model="config.backupEnabled" />
+                <span class="slider" aria-hidden="true"></span>
+              </label>
+            </div>
+
+            <div class="setting-row">
+              <div class="setting-label">Schedule</div>
+              <div style="display:flex;align-items:center;gap:8px">
+                <input class="text-input" type="text" v-model="config.backupSchedule" placeholder="interval:60 or daily:02:00 or weekly:Mon:03:00" />
+                <button class="save-btn" @click="openCronBuilder(); showCronBuilder = !showCronBuilder" type="button" style="margin-left:6px">Build Cron</button>
+              </div>
+            </div>
+
+            <!-- Cron Builder inline removed; modal popup will be used instead -->
+
+            <div class="setting-row">
+              <div class="setting-label">Backup Path</div>
+              <input class="text-input" type="text" v-model="config.backupPath" placeholder="Optional path (server)" />
+            </div>
+
+            <div class="setting-row">
+              <div class="setting-label">Retention (keep)</div>
+              <input class="text-input" type="number" v-model.number="config.backupRetention" placeholder="5" />
+            </div>
+          </div>
+
+          <div style="display:flex;gap:8px;align-items:center;margin-top:12px">
+            <button class="save-btn" @click="saveConfig" :disabled="saving">Save changes</button>
+            <button class="save-btn" @click="createBackupNow" :disabled="creatingBackup">{{ creatingBackup ? 'Creating...' : 'Create Backup Now' }}</button>
+            <span style="color:var(--text-purple-70);margin-left:8px">Backups: <strong>{{ backups.length }}</strong></span>
+          </div>
+
+          <div v-if="status.enabled" style="margin-top:8px;color:var(--text-purple-70);display:flex;gap:12px;align-items:center">
+            <div><strong>Next run:</strong> <span v-if="status.nextRun">{{ formatUtcLocal(status.nextRun) }}</span><span v-else>—</span></div>
+          </div>
+
+          <div v-if="backupsLoading" class="loading" style="margin-top:12px">Loading backups...</div>
+          <div v-else style="margin-top:12px">
+            <table style="width:100%;border-collapse:collapse">
+              <thead>
+                <tr style="text-align:left;color:var(--text-purple-70)">
+                  <th>File</th><th>Timestamp (UTC)</th><th style="width:120px">Size</th><th style="width:240px"></th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-for="b in backups" :key="b.fileName" style="border-top:1px solid var(--border-white-5)">
+                  <td style="padding:8px 6px"><code>{{ b.fileName }}</code></td>
+                  <td style="padding:8px 6px">{{ new Date(b.timestamp).toISOString() }}</td>
+                  <td style="padding:8px 6px">{{ (b.size/1024).toFixed(1) }} KB</td>
+                  <td style="padding:8px 6px;text-align:right">
+                    <button class="save-btn" @click="downloadBackup(b.fileName)">Download</button>
+                    <button class="save-btn" @click="restoreBackup(b.fileName)">Restore</button>
+                    <button class="delete-button" @click="deleteBackup(b.fileName)">Delete</button>
+                  </td>
+                </tr>
+                <tr v-if="backups.length === 0">
+                  <td colspan="4" style="padding:12px;color:var(--text-purple-70)">No backups found.</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
       </div>
     </div>
   </div>
+  <!-- Schedule Help Modal (top-most, full-screen) -->
+  <div v-if="showScheduleHelp" class="modal-backdrop" role="dialog" aria-modal="true" @click.self="closeScheduleHelp">
+    <div class="modal-panel" tabindex="-1">
+      <div class="modal-header">
+        <h3>Backup Schedule &amp; Backup Settings Help</h3>
+        <button class="modal-close" @click="closeScheduleHelp" aria-label="Close help">✕</button>
+      </div>
+
+      <div class="modal-content">
+        <p>This modal explains the schedule formats accepted by the server and practical guidance for backups.</p>
+
+        <h4>Supported schedule formats</h4>
+        <ul>
+          <li><code>interval:{minutes}</code> — run every N minutes. Example: <code>interval:60</code> runs hourly.</li>
+          <li><code>daily:HH:mm</code> — run once per day at the specified 24‑hour time. Example: <code>daily:02:00</code>.</li>
+          <li><code>weekly:Day:HH:mm</code> — run weekly on the specified day and time. Day accepts short names like <code>Mon</code>, <code>Tue</code>, etc. Example: <code>weekly:Sun:04:30</code>.</li>
+        </ul>
+
+        <h4>Rules &amp; validation</h4>
+        <ul>
+          <li>Interval must be a positive integer number of minutes (e.g. <code>interval:15</code>).</li>
+          <li>Daily and weekly times must be valid times in <code>HH:mm</code> (00:00 — 23:59).</li>
+          <li>Weekly day accepts 3‑letter or full names (Mon, Monday).</li>
+          <li>Server will validate the schedule before saving; invalid values will be rejected.</li>
+        </ul>
+
+        <h4>Examples (copyable)</h4>
+        <div class="examples">
+          <div class="example-row"><code>interval:15</code><button class="copy-btn" @click="copyExample('interval:15')">Copy</button><div class="example-desc">Small frequent backups (every 15 minutes).</div></div>
+          <div class="example-row"><code>daily:02:00</code><button class="copy-btn" @click="copyExample('daily:02:00')">Copy</button><div class="example-desc">Nightly backup at 02:00 UTC.</div></div>
+          <div class="example-row"><code>weekly:Sun:04:30</code><button class="copy-btn" @click="copyExample('weekly:Sun:04:30')">Copy</button><div class="example-desc">Weekly maintenance backup on Sunday.</div></div>
+        </div>
+
+        <h4>Retention and path guidance</h4>
+        <ul>
+          <li><strong>Retention:</strong> set how many recent backups to keep (integer &gt;= 1). Older backups beyond this count will be deleted.</li>
+          <li><strong>Backup Path:</strong> if set, backups are stored on that path. The server process must have write permission there and sufficient disk space.</li>
+          <li><strong>WAL mode:</strong> the backup system attempts to snapshot the live SQLite DB safely; however ensure the server has enough temporary disk space for snapshots.</li>
+        </ul>
+
+        <h4>Troubleshooting</h4>
+        <ul>
+          <li>If backups fail, check server logs and ensure the configured path is writable by the service account.</li>
+          <li>Restores overwrite the live database — consider taking a manual copy before restoring in production.</li>
+        </ul>
+
+        <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:16px">
+          <button class="save-btn" @click="closeScheduleHelp">Got it</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Comprehensive Cron Builder Modal -->
+  <div v-if="showCronBuilder" class="modal-backdrop" role="dialog" aria-modal="true" @click.self="showCronBuilder = false">
+    <div class="modal-panel" tabindex="-1">
+      <div class="modal-header">
+        <h3>Cron Builder</h3>
+        <button class="modal-close" @click="showCronBuilder = false" aria-label="Close">✕</button>
+      </div>
+
+      <div class="modal-content">
+        <p>Create a cron expression using the controls below. Preview and validate before applying.</p>
+
+        <div style="display:flex;gap:12px;align-items:center;margin-top:8px">
+          <label style="font-weight:600">Mode</label>
+          <select v-model="cbMode" class="text-input" style="width:220px">
+            <option value="preset">Presets</option>
+            <option value="hourly">Hourly</option>
+            <option value="daily">Daily</option>
+            <option value="weekly">Weekly</option>
+            <option value="monthly">Monthly</option>
+            <option value="yearly">Yearly</option>
+            <option value="custom">Custom (raw cron)</option>
+          </select>
+          <div style="margin-left:auto;color:var(--text-purple-70)">Preview: <code style="background:transparent;padding:0 6px">{{ previewCron }}</code></div>
+        </div>
+
+        <!-- Preset -->
+        <div v-if="cbMode === 'preset'" style="margin-top:12px;display:flex;gap:12px;align-items:center">
+          <label style="font-weight:600">Preset</label>
+          <select v-model="presetType" class="text-input" style="width:200px">
+            <option value="everyNmin">Every N minutes</option>
+            <option value="everyNhours">Every N hours</option>
+            <option value="hourlyAt">Hourly at minute</option>
+          </select>
+          <input type="number" v-model.number="presetN" class="text-input" style="width:120px" min="1" />
+          <div style="color:var(--text-purple-70)">units</div>
+        </div>
+
+        <!-- Hourly -->
+        <div v-if="cbMode === 'hourly'" style="margin-top:12px;display:flex;gap:12px;align-items:center">
+          <label style="font-weight:600">Minute</label>
+          <input type="number" v-model.number="hourlyMinute" class="text-input" style="width:120px" min="0" max="59" />
+        </div>
+
+        <!-- Daily -->
+        <div v-if="cbMode === 'daily'" style="margin-top:12px;display:flex;gap:12px;align-items:center">
+          <label style="font-weight:600">Time (UTC)</label>
+          <input type="time" v-model="dailyTime" class="text-input" style="width:140px" />
+        </div>
+
+        <!-- Weekly -->
+        <div v-if="cbMode === 'weekly'" style="margin-top:12px">
+          <div style="display:flex;gap:12px;align-items:center;margin-bottom:8px">
+            <label style="font-weight:600">Time (UTC)</label>
+            <input type="time" v-model="weeklyTime" class="text-input" style="width:140px" />
+          </div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap">
+            <label v-for="(d, idx) in cronDayNames" :key="d" style="display:inline-flex;align-items:center;gap:6px">
+              <input type="checkbox" v-model="weeklyDays[idx]" /> {{ d }}
+            </label>
+          </div>
+        </div>
+
+        <!-- Monthly -->
+        <div v-if="cbMode === 'monthly'" style="margin-top:12px">
+          <div style="display:flex;gap:12px;align-items:center;margin-bottom:8px">
+            <label style="font-weight:600">Option</label>
+            <select v-model="monthlyOption" class="text-input" style="width:160px">
+              <option value="dom">Day of month</option>
+              <option value="nthWeekday">Nth weekday (advanced)</option>
+            </select>
+          </div>
+          <div v-if="monthlyOption === 'dom'" style="display:flex;gap:12px;align-items:center">
+            <label style="font-weight:600">Day</label>
+            <input type="number" v-model.number="monthlyDay" class="text-input" style="width:120px" min="1" max="31" />
+            <label style="font-weight:600">Time</label>
+            <input type="time" v-model="monthlyTime" class="text-input" style="width:120px" />
+          </div>
+          <div v-else style="display:flex;gap:12px;align-items:center">
+            <label style="font-weight:600">Ordinal</label>
+            <select v-model="monthlyOrdinal" class="text-input" style="width:140px">
+              <option value="first">First</option>
+              <option value="second">Second</option>
+              <option value="third">Third</option>
+              <option value="fourth">Fourth</option>
+              <option value="last">Last</option>
+            </select>
+            <label style="font-weight:600">Weekday</label>
+            <select v-model.number="monthlyWeekday" class="text-input" style="width:120px">
+              <option v-for="(d, i) in cronDayNames" :key="d" :value="i">{{ d }}</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- Yearly -->
+        <div v-if="cbMode === 'yearly'" style="margin-top:12px;display:flex;gap:12px;align-items:center">
+          <label style="font-weight:600">Month</label>
+          <input type="number" v-model.number="yearlyMonth" class="text-input" style="width:120px" min="1" max="12" />
+          <label style="font-weight:600">Day</label>
+          <input type="number" v-model.number="yearlyDay" class="text-input" style="width:120px" min="1" max="31" />
+          <label style="font-weight:600">Time</label>
+          <input type="time" v-model="yearlyTime" class="text-input" style="width:140px" />
+        </div>
+
+        <!-- Custom -->
+        <div v-if="cbMode === 'custom'" style="margin-top:12px">
+          <label style="font-weight:600">Raw Cron</label>
+          <input class="text-input" type="text" v-model="customCron" placeholder="e.g. 0 2 * * *" />
+          <div style="margin-top:8px;color:var(--text-purple-70);font-size:13px">Use standard 5-field cron: <code>minute hour day month day-of-week</code></div>
+        </div>
+
+        <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:16px">
+          <div style="flex:1;color:var(--text-purple-70);align-self:center">Validation: <strong style="color:var(--text-white)">{{ cronValidation?.message || '—' }}</strong></div>
+          <button class="save-btn" @click="applyCronBuilder">Apply</button>
+          <button class="delete-button" @click="showCronBuilder = false">Cancel</button>
+        </div>
+      </div>
+    </div>
+  </div>
+ 
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, computed, watch } from 'vue'
+import { ref, onMounted, computed, watch, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 
 const router = useRouter()
 const loading = ref(true)
 const isAdmin = ref(false)
-const config = ref({ privateMode: false, prohibitGroups: false, prohibitGeneral: false, httpUrl: '', httpsUrl: '' })
+const config = ref({ privateMode: false, prohibitGroups: false, prohibitGeneral: false, userGroupLimit: 5 as number | null, httpUrl: '', httpsUrl: '', backupEnabled: false, backupSchedule: '', backupPath: '', backupRetention: 5 })
 const originalConfig = ref<{ httpUrl: string; httpsUrl: string } | null>(null)
 const showRestartNotice = ref(false)
 const loadingConfig = ref(false)
@@ -235,6 +482,99 @@ const inviteMaxUses = ref<number>(1)
 const inviteExpiresSeconds = ref<number>(0)
 const users = ref<Array<{ id:number; name:string; email:string; isAdmin:boolean; isDeactivated:boolean }>>([])
 const usersLoading = ref(false)
+const backups = ref<Array<{ fileName:string; timestamp:string; size:number }>>([])
+const backupsLoading = ref(false)
+const creatingBackup = ref(false)
+const showScheduleHelp = ref(false)
+const showCronBuilder = ref(false)
+const cronMode = ref<'daily'|'weekly'>('daily')
+const cronTime = ref('02:00')
+const cronDays = ref<Array<boolean>>([false, false, false, false, false, false, false]) // Sun..Sat
+const cronDayNames = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat']
+const status = ref({ enabled:false, schedule:'', retention:5, lastRun: null as string | null, nextRun: null as string | null })
+
+function formatUtcLocal(iso: string | null) {
+  if (!iso) return '—'
+  try {
+    const d = new Date(iso)
+    return d.toLocaleString()
+  } catch { return iso }
+}
+
+// Comprehensive Cron Builder state
+const cbMode = ref<'preset'|'daily'|'weekly'|'monthly'|'yearly'|'custom'|'hourly'>('daily')
+// preset options
+const presetType = ref<'everyNmin'|'everyNhours'|'hourlyAt'>('everyNmin')
+const presetN = ref<number>(15)
+const hourlyMinute = ref<number>(0)
+
+// daily/weekly/monthly/yearly time fields
+const dailyTime = ref('02:00')
+const weeklyTime = ref('02:00')
+const weeklyDays = ref<Array<boolean>>([false,false,false,false,false,false,false])
+
+// monthly options
+const monthlyOption = ref<'dom'|'nthWeekday'>('dom')
+const monthlyDay = ref<number>(1)
+const monthlyOrdinal = ref<'first'|'second'|'third'|'fourth'|'last'>('first')
+const monthlyWeekday = ref<number>(1) // 0=Sun
+const monthlyTime = ref('02:00')
+
+// yearly
+const yearlyMonth = ref<number>(1)
+const yearlyDay = ref<number>(1)
+const yearlyTime = ref('02:00')
+
+// custom
+const customCron = ref('')
+
+// validation state for preview
+const cronValidation = ref<{ valid: boolean; message?: string } | null>(null)
+
+const previewCron = computed(() => {
+  try {
+    if (cbMode.value === 'preset') {
+      if (presetType.value === 'everyNmin') return `*/${Math.max(1, Math.floor(presetN.value))} * * * *`
+      if (presetType.value === 'everyNhours') return `0 */${Math.max(1, Math.floor(presetN.value))} * * *`
+      // hourlyAt
+      return `${Math.max(0, Math.floor(hourlyMinute.value))} * * * *`
+    }
+    if (cbMode.value === 'hourly') return `${Math.max(0, Math.floor(hourlyMinute.value))} * * * *`
+    if (cbMode.value === 'daily') {
+      const [hh, mm] = (dailyTime.value || '02:00').split(':')
+      return `${Number(mm)} ${Number(hh)} * * *`
+    }
+    if (cbMode.value === 'weekly') {
+      const [hh, mm] = (weeklyTime.value || '02:00').split(':')
+      const selected = weeklyDays.value.map((v, i) => v ? String(i) : null).filter(Boolean)
+      const dow = selected.length ? selected.join(',') : '*'
+      return `${Number(mm)} ${Number(hh)} * * ${dow}`
+    }
+    if (cbMode.value === 'monthly') {
+      const [hh, mm] = (monthlyTime.value || '02:00').split(':')
+      if (monthlyOption.value === 'dom') {
+        const d = Math.max(1, Math.min(31, monthlyDay.value))
+        return `${Number(mm)} ${Number(hh)} ${d} * *`
+      }
+      // nth weekday -> translate to cron 'day-of-month' is not expressive; use nearest day pattern with L/ or complex form — fallback to custom pattern using ? not supported
+      // We'll emit a cron that runs every day at time and rely on server-side custom if user needs exact nth-weekday.
+      return `${Number(mm)} ${Number(hh)} * * *`
+    }
+    if (cbMode.value === 'yearly') {
+      const [hh, mm] = (yearlyTime.value || '02:00').split(':')
+      const mon = Math.max(1, Math.min(12, yearlyMonth.value))
+      const day = Math.max(1, Math.min(31, yearlyDay.value))
+      return `${Number(mm)} ${Number(hh)} ${day} ${mon} *`
+    }
+    // custom
+    if (cbMode.value === 'custom') return customCron.value.trim()
+    return ''
+  } catch {
+    return ''
+  }
+})
+
+
 
 // Search & pagination
 const searchQuery = ref('')
@@ -297,6 +637,7 @@ onMounted(async () => {
   await checkAdmin()
   loading.value = false
   if (isAdmin.value) await fetchAdminConfig()
+  if (isAdmin.value) await fetchBackupStatus()
 })
 
 async function fetchAdminConfig() {
@@ -313,6 +654,11 @@ async function fetchAdminConfig() {
     config.value.prohibitGeneral = !!data.prohibitGeneral
     config.value.httpUrl = data.httpUrl || ''
     config.value.httpsUrl = data.httpsUrl || ''
+    config.value.userGroupLimit = typeof data.userGroupLimit === 'number' ? data.userGroupLimit : 5
+    config.value.backupEnabled = !!data.backupEnabled
+    config.value.backupSchedule = data.backupSchedule || ''
+    config.value.backupPath = data.backupPath || ''
+    config.value.backupRetention = typeof data.backupRetention === 'number' ? data.backupRetention : 5
       // Keep a copy of original ports so we can detect changes that require a restart
       originalConfig.value = { httpUrl: config.value.httpUrl, httpsUrl: config.value.httpsUrl }
   } catch (e) {
@@ -324,8 +670,81 @@ async function fetchAdminConfig() {
     if (isAdmin.value) {
       await loadInvites()
       await loadUsers()
+      await loadBackups()
     }
   }
+}
+
+async function loadBackups() {
+  backupsLoading.value = true
+  try {
+    const res = await fetch('/api/admin/backups', { credentials: 'include' })
+    if (!res.ok) { backups.value = []; return }
+    backups.value = await res.json()
+  } catch (e) { backups.value = []; console.warn(e) }
+  finally { backupsLoading.value = false }
+}
+
+async function fetchBackupStatus() {
+  try {
+    const res = await fetch('/api/admin/backups/status', { credentials: 'include' })
+    if (!res.ok) { return }
+    const data = await res.json()
+    status.value.enabled = !!data.enabled
+    status.value.schedule = data.schedule || ''
+    status.value.retention = typeof data.retention === 'number' ? data.retention : 5
+    status.value.lastRun = data.lastRun || null
+    status.value.nextRun = data.nextRun || null
+  } catch (e) { console.warn(e) }
+}
+
+// refresh backup status periodically while on the page
+let statusInterval: number | undefined
+watch(isAdmin, (v) => {
+  if (v) {
+    // refresh every 30 seconds
+    statusInterval = window.setInterval(fetchBackupStatus, 30000)
+  } else {
+    if (statusInterval) { clearInterval(statusInterval); statusInterval = undefined }
+  }
+})
+
+async function createBackupNow() {
+  if (!confirm('Create backup now?')) return
+  creatingBackup.value = true
+  try {
+    const res = await fetch('/api/admin/backups/create', { method: 'POST', credentials: 'include' })
+    if (!res.ok) { const txt = await res.text().catch(() => ''); alert(`Create backup failed: ${res.status} ${txt}`); return }
+    await loadBackups()
+    // refresh status so UI shows updated lastRun/nextRun immediately
+    await fetchBackupStatus()
+    alert('Backup created')
+  } catch (e) { console.warn(e); alert('Network error creating backup') }
+  finally { creatingBackup.value = false }
+}
+
+function downloadBackup(fileName: string) {
+  // Open the download endpoint in a new tab to trigger download
+  const url = `/api/admin/backups/download/${encodeURIComponent(fileName)}`
+  window.open(url, '_blank')
+}
+
+async function restoreBackup(fileName: string) {
+  if (!confirm('Restore this backup? This will overwrite the current database file.')) return
+  try {
+    const res = await fetch(`/api/admin/backups/restore/${encodeURIComponent(fileName)}`, { method: 'POST', credentials: 'include' })
+    if (!res.ok) { const txt = await res.text().catch(() => ''); alert(`Restore failed: ${res.status} ${txt}`); return }
+    alert('Restore completed (server may need restart).')
+  } catch (e) { console.warn(e); alert('Network error restoring backup') }
+}
+
+async function deleteBackup(fileName: string) {
+  if (!confirm('Delete this backup?')) return
+  try {
+    const res = await fetch(`/api/admin/backups/${encodeURIComponent(fileName)}`, { method: 'DELETE', credentials: 'include' })
+    if (!res.ok) { const txt = await res.text().catch(() => ''); alert(`Delete failed: ${res.status} ${txt}`); return }
+    await loadBackups()
+  } catch (e) { console.warn(e); alert('Network error deleting backup') }
 }
 
 async function loadInvites() {
@@ -425,12 +844,29 @@ async function saveConfig() {
   saveMessage.value = ''
   saving.value = true
   try {
+    // validate schedule with server-side validator (if provided)
+    if (config.value.backupSchedule && config.value.backupSchedule.trim() !== '') {
+      try {
+        const vres = await fetch('/api/admin/validate-schedule', { method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ schedule: config.value.backupSchedule }) })
+        if (vres.ok) {
+          const v = await vres.json()
+          if (!v.valid) { saveMessage.value = `Schedule invalid: ${v.message}`; return }
+        } else {
+          const t = await vres.text().catch(() => ''); saveMessage.value = `Schedule validation failed: ${vres.status} ${t}`; return
+        }
+      } catch (e) { saveMessage.value = 'Schedule validation request failed'; console.warn(e); return }
+    }
     const payload = {
       ProhibitGroups: config.value.prohibitGroups,
       PrivateMode: config.value.privateMode,
       ProhibitGeneral: config.value.prohibitGeneral,
+      UserGroupLimit: config.value.userGroupLimit,
       HttpUrl: config.value.httpUrl,
       HttpsUrl: config.value.httpsUrl,
+      BackupEnabled: config.value.backupEnabled,
+      BackupSchedule: config.value.backupSchedule,
+      BackupPath: config.value.backupPath,
+      BackupRetention: config.value.backupRetention,
     }
     const res = await fetch('/api/admin/config', {
       method: 'PUT',
@@ -458,10 +894,130 @@ async function saveConfig() {
     saveMessage.value = 'Network error while saving'
   } finally {
     saving.value = false
+    // Refresh backups status in case enabling/disabling backups changed
+    try { await fetchBackupStatus() } catch {}
     setTimeout(() => (saveMessage.value = ''), 4000)
   }
 }
+
+// Modal helpers for schedule help
+function closeScheduleHelp() {
+  showScheduleHelp.value = false
+}
+
+function copyExample(text: string) {
+  if (!text) return
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(text).then(() => alert('Copied to clipboard'))
+  } else {
+    const el = document.createElement('textarea'); el.value = text; document.body.appendChild(el); el.select(); document.execCommand('copy'); document.body.removeChild(el);
+    alert('Copied to clipboard')
+  }
+}
+
+function openCronBuilder() {
+  // Initialize builder from current schedule if possible
+  const s = (config.value.backupSchedule || '').toString().trim()
+  // Reset builder state
+  cbMode.value = 'daily'
+  presetType.value = 'everyNmin'
+  presetN.value = 15
+  hourlyMinute.value = 0
+  dailyTime.value = '02:00'
+  weeklyTime.value = '02:00'
+  weeklyDays.value = [false,false,false,false,false,false,false]
+  monthlyOption.value = 'dom'
+  monthlyDay.value = 1
+  monthlyOrdinal.value = 'first'
+  monthlyWeekday.value = 1
+  monthlyTime.value = '02:00'
+  yearlyMonth.value = 1
+  yearlyDay.value = 1
+  yearlyTime.value = '02:00'
+  customCron.value = ''
+
+  const sRaw = (config.value.backupSchedule || '').toString().trim()
+  if (!sRaw) return
+  // If it looks like a 5-field cron, initialize custom mode with the expression
+  const parts = sRaw.split(/\s+/)
+  if (parts.length >= 5) {
+    cbMode.value = 'custom'
+    customCron.value = sRaw
+    return
+  }
+  // otherwise place it in custom as-is
+  cbMode.value = 'custom'
+  customCron.value = sRaw
+}
+
+async function validateCronExpression(expr: string) {
+  cronValidation.value = null
+  if (!expr || expr.trim() === '') { cronValidation.value = { valid: false, message: 'Empty expression' }; return false }
+  try {
+    const res = await fetch('/api/admin/validate-schedule', { method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ schedule: expr }) })
+    if (!res.ok) {
+      cronValidation.value = { valid: false, message: `Validation endpoint error: ${res.status}` }
+      return false
+    }
+    const j = await res.json()
+    cronValidation.value = { valid: !!j.valid, message: j.message }
+    return !!j.valid
+  } catch (e) {
+    cronValidation.value = { valid: false, message: 'Network error validating expression' }
+    return false
+  }
+}
+
+async function applyCronBuilder() {
+  const expr = previewCron.value || ''
+  if (!expr) { alert('Cannot build cron expression from current inputs'); return }
+  const ok = await validateCronExpression(expr)
+  if (!ok) {
+    if (!confirm(`Expression appears invalid: ${cronValidation.value?.message || 'unknown'}. Apply anyway?`)) return
+  }
+  config.value.backupSchedule = expr
+  showCronBuilder.value = false
+}
+
+function onKeyDownForModal(e: KeyboardEvent) {
+  if (e.key === 'Escape') closeScheduleHelp()
+}
+
+watch(showScheduleHelp, (v) => {
+  if (v) window.addEventListener('keydown', onKeyDownForModal)
+  else window.removeEventListener('keydown', onKeyDownForModal)
+})
+
+onUnmounted(() => { window.removeEventListener('keydown', onKeyDownForModal) })
 </script>
+<!-- removed duplicate modal (moved into main template) -->
+<style scoped>
+.info-icon {
+  background: transparent;
+  border: 1px solid var(--bg-chat-sidebar-1);
+  color: var(--text-purple-70);
+  width: 28px; height: 28px; border-radius: 50%; display:inline-flex; align-items:center; justify-content:center; cursor:pointer;
+}
+.help-popup {
+  margin-top:8px; padding:10px; background:var(--bg-chat-dark-1); border:1px solid var(--bg-chat-sidebar-1); border-radius:6px; color:var(--text-white); max-width:520px; font-size:13px;
+}
+
+/* Modal styles for schedule help */
+.modal-backdrop {
+  position:fixed; inset:0; background:rgba(3,6,12,0.75); display:flex; align-items:center; justify-content:center; z-index:9999;
+}
+.modal-panel {
+  width:calc(100% - 48px); max-width:980px; max-height:90vh; overflow:auto; background:var(--bg-chat-sidebar-1); border-radius:10px; padding:18px; box-shadow:0 10px 30px rgba(0,0,0,0.6); color:var(--text-white);
+}
+.modal-header { display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:12px }
+.modal-header h3 { margin:0; font-size:18px }
+.modal-close { background:transparent; border:none; color:var(--text-white); font-size:18px; cursor:pointer }
+.modal-content h4 { margin-top:12px; margin-bottom:8px }
+.examples { display:flex; flex-direction:column; gap:8px }
+.example-row { display:flex; gap:8px; align-items:center }
+.example-desc { color:var(--text-purple-70); font-size:13px; margin-left:8px }
+.copy-btn { margin-left:8px; padding:6px 8px; border-radius:6px; background:var(--bg-chat-dark-2); color:var(--text-white); border:1px solid var(--bg-chat-sidebar-1); cursor:pointer }
+</style>
 <style scoped>
 .admin-page {
   min-height: 100vh;
